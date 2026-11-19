@@ -10,8 +10,8 @@ export default defineConfig({
       include: ["src/**/*.ts"],
       exclude: ["src/index.ts", "src/db/cli.ts", "src/jobs/worker.ts", "src/drivers/**"],
       reporter: ["text-summary", "html"],
-      // N9 target: >= 70%. Enforced once modules are implemented (Iteration 2+).
-      // thresholds: { lines: 70, functions: 70, branches: 70, statements: 70 },
+      // N9: at least 70% automated test coverage. CI fails below this.
+      thresholds: { lines: 70, statements: 70 },
     },
   },
 });

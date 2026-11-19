@@ -133,6 +133,15 @@ describe("M01 sessions", () => {
     expect((await request(t.app).get("/api/v1/auth/me").set(bearer(token))).status).toBe(401);
   });
 
+  it("GET /stores lists only the caller's stores; the admin sees all", async () => {
+    const names = async (email: string) => {
+      const res = await request(t.app).get("/api/v1/stores").set(bearer(await login(t.app, email)));
+      return res.body.data.map((s: { id: string }) => s.id);
+    };
+    expect(await names("tech.clifton@redhawk.test")).toEqual(["store-clifton"]);
+    expect(await names("admin@redhawk.test")).toHaveLength(3);
+  });
+
   it("an invalid token is treated as signed out", async () => {
     const res = await request(t.app).get("/api/v1/auth/me").set(bearer("not-a-real-token"));
     expect(res.status).toBe(401);

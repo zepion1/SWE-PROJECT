@@ -11,7 +11,15 @@
  * - Session tokens are random; only sha256(token) is stored. Sessions expire after SESSION_TTL_MS.
  * - Every attempt (success or failure) is audited.
  */
-import type { ActorView, Role, SessionView, StaffUserCreated, StaffUserStatus, StaffUserView } from "@pharma/shared";
+import type {
+  ActorView,
+  Role,
+  SessionView,
+  StaffUserCreated,
+  StaffUserStatus,
+  StaffUserView,
+  StoreView,
+} from "@pharma/shared";
 import { generateTotpSecret, otpauthUri } from "../../adapters/totp";
 import { hashPassword, newToken, sha256, verifyPassword } from "../../core/crypto";
 import { errors } from "../../core/errors";
@@ -20,7 +28,7 @@ import type { Actor, RoleAssignment } from "../../core/types";
 import type { Infra } from "../../context";
 import { isUniqueViolation } from "../../db/connection";
 import type { AuditService } from "../m13-audit-reporting/service";
-import { assertAuthorized } from "./rbac";
+import { assertAuthorized, authorize } from "./rbac";
 
 export const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // one 8-hour shift
 export const MAX_FAILED_LOGINS = 5;
@@ -172,6 +180,19 @@ export class IdentityService {
     }
 
     return { user: this.getStaffUser(userId), mfaSetup: { secret, otpauthUri: otpauthUri(secret, email) } };
+  }
+
+  /** Stores the caller works in; System Administrators (MANAGE_STORES) see every active store. */
+  listStores(actor: Actor): StoreView[] {
+    const user = requireUser(actor);
+    const all = authorize(actor, "MANAGE_STORES", null).allowed;
+    const ids = new Set(user.roles.map((r) => r.storeId));
+    const rows = this.infra.db
+      .prepare("SELECT id, name, address, postal_code, timezone FROM stores WHERE active = 1 ORDER BY name")
+      .all() as { id: string; name: string; address: string; postal_code: string; timezone: string }[];
+    return rows
+      .filter((s) => all || ids.has(null) || ids.has(s.id))
+      .map((s) => ({ id: s.id, name: s.name, address: s.address, postalCode: s.postal_code, timezone: s.timezone }));
   }
 
   listStaffUsers(actor: Actor): StaffUserView[] {

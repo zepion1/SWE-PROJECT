@@ -34,6 +34,10 @@ export function identityRouter(ctx: AppContext): Router {
     ok(req, res, ctx.identity.me(req.actor!));
   });
 
+  r.get("/stores", requireStaff, (req, res) => {
+    ok(req, res, ctx.identity.listStores(req.actor!));
+  });
+
   r.get("/admin/users", requirePermission("MANAGE_USERS"), (req, res) => {
     ok(req, res, ctx.identity.listStaffUsers(req.actor!));
   });

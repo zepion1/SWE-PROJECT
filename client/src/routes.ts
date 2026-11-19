@@ -3,6 +3,8 @@
  * roadmap iteration that will replace its placeholder with a real page.
  * N6: every common staff task must be reachable within 3 clicks of the dashboard.
  */
+import type { ActorView, Role } from "@pharma/shared";
+
 export interface ScreenSpec {
   path: string;
   title: string;
@@ -10,6 +12,14 @@ export interface ScreenSpec {
   requirements: string[];
   iteration: number;
   summary: string;
+  /** Roles that see this screen (UI convenience only; the server enforces access). Omit for everyone. */
+  roles?: Role[];
+}
+
+const PHARMACY_STAFF: Role[] = ["TECHNICIAN", "PHARMACIST_MANAGER"];
+
+export function canSee(spec: ScreenSpec, actor: ActorView): boolean {
+  return !spec.roles || actor.roles.some((r) => spec.roles!.includes(r.role));
 }
 
 export const staffScreens: ScreenSpec[] = [
@@ -20,6 +30,7 @@ export const staffScreens: ScreenSpec[] = [
     requirements: ["F24", "F9", "F10", "F13"],
     iteration: 3,
     summary: "Low-stock items, expiring lots, pending orders and AI alerts for your store.",
+    roles: PHARMACY_STAFF,
   },
   {
     path: "/staff/inventory",
@@ -28,6 +39,7 @@ export const staffScreens: ScreenSpec[] = [
     requirements: ["F7"],
     iteration: 2,
     summary: "Real-time quantity per product, broken down by lot, with search and filters.",
+    roles: PHARMACY_STAFF,
   },
   {
     path: "/staff/receive",
@@ -36,6 +48,7 @@ export const staffScreens: ScreenSpec[] = [
     requirements: ["F5"],
     iteration: 2,
     summary: "Scan a barcode or type lot number, expiration date, quantity and supplier.",
+    roles: PHARMACY_STAFF,
   },
   {
     path: "/staff/adjustments",
@@ -44,6 +57,7 @@ export const staffScreens: ScreenSpec[] = [
     requirements: ["F6", "F8"],
     iteration: 2,
     summary: "Record discrepancies and cycle counts; pharmacists approve or reject pending corrections.",
+    roles: PHARMACY_STAFF,
   },
   {
     path: "/staff/expiring",
@@ -52,6 +66,16 @@ export const staffScreens: ScreenSpec[] = [
     requirements: ["F9", "F10", "F11"],
     iteration: 2,
     summary: "Expired and soon-to-expire lots (30 / 60 / 90 days), first-expired-first-out advice, disposals.",
+    roles: PHARMACY_STAFF,
+  },
+  {
+    path: "/staff/products",
+    title: "Products",
+    module: "M02",
+    requirements: ["F4", "F22"],
+    iteration: 1,
+    summary: "Product catalog: NDC, strength, dosage form, category and controlled-substance schedule.",
+    roles: PHARMACY_STAFF,
   },
   {
     path: "/staff/orders",
@@ -60,6 +84,7 @@ export const staffScreens: ScreenSpec[] = [
     requirements: ["F13", "F14"],
     iteration: 3,
     summary: "Draft, approve, send and receive purchase orders; delivery discrepancies are flagged.",
+    roles: PHARMACY_STAFF,
   },
   {
     path: "/staff/suppliers",
@@ -68,6 +93,7 @@ export const staffScreens: ScreenSpec[] = [
     requirements: ["F12"],
     iteration: 3,
     summary: "Supplier contacts, lead times, minimum orders, prices and product reorder points.",
+    roles: PHARMACY_STAFF,
   },
   {
     path: "/staff/forecasts",
@@ -76,6 +102,7 @@ export const staffScreens: ScreenSpec[] = [
     requirements: ["F15", "F16", "F17", "F18"],
     iteration: 4,
     summary: "7 / 30 / 90-day demand forecasts and reorder suggestions to accept, edit or reject. Advisory only.",
+    roles: PHARMACY_STAFF,
   },
   {
     path: "/staff/reports",
@@ -84,6 +111,7 @@ export const staffScreens: ScreenSpec[] = [
     requirements: ["F25"],
     iteration: 3,
     summary: "Inventory value, stock movement, expiration losses and forecast accuracy, exportable as CSV.",
+    roles: PHARMACY_STAFF,
   },
   {
     path: "/staff/admin",
@@ -92,6 +120,7 @@ export const staffScreens: ScreenSpec[] = [
     requirements: ["F1", "F3"],
     iteration: 1,
     summary: "Staff accounts, role assignments, stores and the audit log (System Administrator).",
+    roles: ["SYSTEM_ADMIN"],
   },
 ];
 

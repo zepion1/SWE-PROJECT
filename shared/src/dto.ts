@@ -29,6 +29,14 @@ export interface SessionView {
   actor: ActorView;
 }
 
+export interface StoreView {
+  id: string;
+  name: string;
+  address: string;
+  postalCode: string;
+  timezone: string;
+}
+
 export type StaffUserStatus = "ACTIVE" | "LOCKED" | "DISABLED";
 
 export interface StaffUserView extends ActorView {
