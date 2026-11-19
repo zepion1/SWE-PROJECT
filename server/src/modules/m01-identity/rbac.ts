@@ -68,6 +68,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Action[]> = {
 export const SERVICE_PERMISSIONS: Record<ServiceName, readonly Action[]> = {
   WORKER: ["VIEW_INVENTORY", "VIEW_EXPIRING", "VIEW_FORECASTS", "DRAFT_ORDER"],
   POS_ADAPTER: ["INGEST_POS_SALES"],
+  AUTH: [],
 };
 
 export type Decision = { allowed: true } | { allowed: false; reason: "UNAUTHENTICATED" | "FORBIDDEN" };

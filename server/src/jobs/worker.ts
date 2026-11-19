@@ -4,6 +4,7 @@
  * scheduler) shortly after midnight store-local time. An in-process scheduler
  * can replace this in Iteration 3 (M12).
  */
+import { createAdapters } from "../adapters/stubs";
 import { loadConfig } from "../config";
 import { createContext } from "../context";
 import { openDatabase } from "../db/connection";
@@ -15,7 +16,7 @@ const db = openDatabase(config.databasePath);
 runMigrations(db);
 
 try {
-  const outcomes = await runDailyJobs(createContext({ db }));
+  const outcomes = await runDailyJobs(createContext({ db, adapters: createAdapters(config) }));
   console.table(outcomes);
   if (outcomes.some((o) => o.status === "FAILED")) process.exitCode = 1;
 } finally {

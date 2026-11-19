@@ -22,6 +22,39 @@ export interface ActorView {
   roles: { role: Role; storeId: string | null }[];
 }
 
+/** POST /auth/login response. Send `token` as `Authorization: Bearer <token>`. */
+export interface SessionView {
+  token: string;
+  expiresAt: string;
+  actor: ActorView;
+}
+
+export type StaffUserStatus = "ACTIVE" | "LOCKED" | "DISABLED";
+
+export interface StaffUserView extends ActorView {
+  status: StaffUserStatus;
+  createdAt: string;
+}
+
+/** POST /admin/users response. The MFA secret is returned ONCE so the admin can hand it to the user. */
+export interface StaffUserCreated {
+  user: StaffUserView;
+  mfaSetup: { secret: string; otpauthUri: string };
+}
+
+export interface AuditEventView {
+  id: string;
+  actorType: "USER" | "SERVICE";
+  actorId: string;
+  storeId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  before: unknown;
+  after: unknown;
+  at: string;
+}
+
 export interface ProductView {
   id: string;
   ndc: string;
