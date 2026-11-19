@@ -1,4 +1,4 @@
-# Architecture
+# RedHawk Pharmacy: Architecture
 
 This document turns the Detailed Design Specification (DDS v0.1) into diagrams, applied to the chosen stack: **TypeScript · React · Express · SQLite**. Every diagram is Mermaid, which GitHub renders inline.
 
@@ -30,7 +30,7 @@ flowchart LR
     admin["System Administrator"]
     cust["Customer<br/>(guest or registered)"]
 
-    sys(["Pharmaceutical Inventory and<br/>Customer Information System"])
+    sys(["RedHawk Pharmacy<br/>Inventory and Customer Information System"])
 
     pos["POS system<br/>(simulator)"]
     sup["Supplier ordering<br/>(stub adapter)"]
@@ -57,8 +57,8 @@ The semester prototype runs one backend process, one SQLite file and one worker 
 ```mermaid
 flowchart TB
     subgraph browser["Browser"]
-        staffUI["Staff app<br/>React routes /staff/*"]
-        publicUI["Customer portal<br/>React routes /"]
+        staffUI["RedHawk staff app<br/>React routes /staff/*"]
+        publicUI["RedHawk customer portal<br/>React routes /"]
     end
 
     subgraph server["Node.js process: server/"]
