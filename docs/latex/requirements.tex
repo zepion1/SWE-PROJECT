@@ -1,0 +1,293 @@
+% Compile from docs/latex with XeLaTeX. Shared formatting: common.tex.
+\input{common.tex}
+
+\begin{document}
+
+\projecttitle{AI-Driven Pharmaceutical Real-Time Inventory and Customer Information System}
+
+\documentsubtitle{Software Requirements Specification Document (SRS)}
+
+\begin{center}{\fontsize{12}{14}\selectfont\itshape Draft: Version 0.3\par}\end{center}
+
+Course: Software Engineering
+
+Team: Seal-SIMD
+
+Team Members: Maria Molano Escobar, Marko Maksuti, Ryan Petillo, Samuel Cordova
+
+Instructor: Hubert Johnson
+
+Date: November 10, 2026
+
+\clearpage
+\section*{Revision History}\label{revision-history}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 8\tabcolsep - 5\arrayrulewidth) * \real{0.1282}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 8\tabcolsep - 5\arrayrulewidth) * \real{0.1923}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 8\tabcolsep - 5\arrayrulewidth) * \real{0.2564}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 8\tabcolsep - 5\arrayrulewidth) * \real{0.4231}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Version}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Date}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Author}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Description}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+0.1 & Sep 10, 2026 & Seal-SIMD Team & Initial draft of requirements and specifications \\ \hline
+0.2 & Oct 1, 2026 & Seal-SIMD Team & Enhanced version from feedback provided by Prof. Johnson \\ \hline
+0.3 & Nov 10, 2026 & Seal-SIMD Team & Enhanced version from feedback provided by Prof. Johnson \\ \hline
+\end{longtable}
+}
+
+\clearpage
+\tableofcontents
+
+\clearpage
+\section{1. Introduction}\label{introduction}
+
+\subsection{1.1. Purpose}\label{purpose}
+
+This document defines the functional and non-functional requirements of the AI-Driven Pharmaceutical Real-Time Inventory and Customer Information System, along with high-level specifications describing its expected behavior. It serves as a reference for the development team and stakeholders throughout system design, implementation, and testing, ensuring a shared understanding of the system\textquotesingle s intended functionality and constraints.
+
+\subsection{1.2. Scope}\label{scope}
+
+The system will cover inventory management operations for participating pharmacies, including product and supplier records, stock tracking, expiration management, purchase orders, and reporting. It will also include AI-based demand forecasting and inventory recommendations, as well as a customer-facing portal for accessing medication availability, pricing, and pharmacy locations.
+
+The system will support inventory updates based on sales recorded at the pharmacy\textquotesingle s point-of-sale system. Inventory decisions involving stock adjustments and purchase orders will remain subject to approval by authorized pharmacy personnel.
+
+Out of scope for this version are prescription dispensing and e-prescribing, insurance claim processing, online payment, home delivery, and any medical or dosing advice.
+
+\subsection{1.3. Glossary}\label{glossary}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\centering\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.3205}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.6795}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\centering
+\textbf{Term}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Definition}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+NDC & National Drug Code \\ \hline
+Schedule (I, II, III, IV, V) & Drugs, substances, and certain chemicals used to make drugs are classified into five (5) distinct categories or schedules depending upon the drug's acceptable medical use and the drug's abuse or dependency potential \\ \hline
+WCAG & Web Content Accessibility Guidelines. Recognized technical standard for digital accessibility that ensures websites and apps are usable for people with disabilities \\ \hline
+AA & An intermediate conformance level of the WCAG. \\ \hline
+AI & Artificial Intelligence \\ \hline
+ML & Machine Learning \\ \hline
+HIPAA & Health Insurance Portability and Accountability Act \\ \hline
+DSCSA & Drug Supply Chain Security Act \\ \hline
+MAPE & Mean Absolute Percentage Error \\ \hline
+MoSCoW & Must Have, Should Have, Could Have, Won\textquotesingle t Have \\ \hline
+\end{longtable}
+}
+
+\clearpage
+\section{2. Overall Description}\label{overall-description}
+
+\subsection{2.1. System Overview}\label{system-overview}
+
+The system will operate as a centralized platform connecting multiple participating pharmacies through a shared application. Each pharmacy will maintain its own inventory records, while the platform will provide a unified way to access and manage information across locations.
+
+The application will have two main views: one for pharmacy operations and another for customers. The pharmacy view will provide role-based access to operational functions, while the customer view will allow public access to product information with optional account registration for additional features.
+
+Inventory information will be updated through staff actions and sales recorded at the pharmacy\textquotesingle s point-of-sale system. Machine learning models will analyze historical sales data to generate recommendations for pharmacy personnel to review.
+
+The system will distinguish between staff roles, customers, and system administrators, with their respective responsibilities and permissions described in \textbf{Table 2.1.1.}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.1958}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3535}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.4507}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{User}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Description}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Main Capabilities}
+\end{minipage} \\
+\hline
+\endhead
+
+\caption*{Table 2.1.1. Roles of users of the system and their responsibilities}\\
+\endlastfoot
+Pharmacist / Manager & Authorized pharmacy personnel responsible for overseeing inventory operations and approving stock adjustments and purchase orders. & Review inventory records, verify physical stock against recorded quantities, approve stock adjustments and reorder requests, review AI-generated recommendations, and view reports. \\ \hline
+Pharmacy Technician & Staff member supporting daily operations. & Receive stock, perform physical inventory counts, and record discrepancies for review; cannot approve stock adjustments or reorder requests. \\ \hline
+Customer & Member of the public, with or without an account. & Search products, view availability and price, find nearest pharmacy, receive back-in-stock alerts (for registered users). \\ \hline
+System Administrator & IT staff managing the platform. & Manage users, stores, integrations, settings, view and review audit logs. \\ \hline
+\end{longtable}
+}
+
+\clearpage
+\section{3. Requirements}\label{requirements}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.9140}}|
+  >{\centering\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.0860}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\centering
+\textbf{Functional Requirement}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\centering
+\textbf{Priority}
+\end{minipage} \\
+\hline
+\endhead
+
+\caption*{Table 3.1. Functional Requirements. Priorities follow the MoSCoW method: Must (essential), Should (important), Could (if time allows).}\\
+\endlastfoot
+\multicolumn{2}{|>{\raggedright\arraybackslash}m{(\linewidth - 2\tabcolsep) * \real{1.0000} + 2\tabcolsep}|}{%
+\textbf{User Management and Security}} \\ \hline
+Provide secure staff login with multi-factor authentication and role-based access control. Allow the System Administrator to create staff accounts and assign roles. & Must \\ \hline
+Customers can search without an account and optionally register for extra features. & Should \\ \hline
+Keep an audit log (who, when, what changed) for every inventory change. & Must \\ \hline
+\multicolumn{2}{|>{\raggedright\arraybackslash}m{(\linewidth - 2\tabcolsep) * \real{1.0000} + 2\tabcolsep}|}{%
+\textbf{Inventory Management}} \\ \hline
+Add, edit, and deactivate products with name, National Drug Code (NDC), strength, dosage form, category, and price. & Must \\ \hline
+Receive stock by barcode scan or manual entry, capturing lot number, expiration date, quantity, and supplier. & Must \\ \hline
+Automatically reduce stock when a sale is recorded at the point of sale; allow manual stock adjustments with a reason code, subject to Pharmacist/Manager approval. & Must \\ \hline
+Display real-time stock on hand for each product, broken down by lot, with search and filtering. & Must \\ \hline
+Support cycle counts that flag differences between counted and recorded quantities. & Should \\ \hline
+\multicolumn{2}{|>{\raggedright\arraybackslash}m{(\linewidth - 2\tabcolsep) * \real{1.0000} + 2\tabcolsep}|}{%
+\textbf{Expiration Management}} \\ \hline
+Track expiration dates by lot and display a dashboard of expired and soon-to-expire items, organized within ranges of 30, 60, or 90 days. & Must \\ \hline
+Send daily alerts to the Pharmacist/Manager/Technician for expired and soon-to-expire items and block the sale of expired stock. & Must \\ \hline
+Recommend first-expired, first-out picking and record disposal or return of expired items with the dollar loss. & Should \\ \hline
+\multicolumn{2}{|>{\raggedright\arraybackslash}m{(\linewidth - 2\tabcolsep) * \real{1.0000} + 2\tabcolsep}|}{%
+\textbf{Reordering and Suppliers}} \\ \hline
+Maintain supplier records (contact, lead time, minimum order, prices) and reorder points per product. & Must \\ \hline
+Alert staff when stock reaches the reorder point and create draft purchase orders that require pharmacist approval. & Must \\ \hline
+Send approved orders to suppliers and track status from Draft to Received; flag shipment discrepancies. & Should \\ \hline
+Predict which lots may expire before selling, detect unusual inventory activity, and explain each recommendation. & Should \\ \hline
+\multicolumn{2}{|>{\raggedright\arraybackslash}m{(\linewidth - 2\tabcolsep) * \real{1.0000} + 2\tabcolsep}|}{%
+\textbf{AI Chatbot and Machine Learning Analytics}} \\ \hline
+Use ML Models to forecast demand for each product (over the next 7, 30, and 90 days) using sales history, seasonality, and trends. & Must \\ \hline
+Recommend reorder points and quantities; the pharmacist may accept, edit, or reject each recommendation. & Must \\ \hline
+Prevent AI-generated recommendations from placing orders or modifying stock records without approval from an authorized Pharmacist/Manager. & Must \\ \hline
+\multicolumn{2}{|>{\raggedright\arraybackslash}m{(\linewidth - 2\tabcolsep) * \real{1.0000} + 2\tabcolsep}|}{%
+\textbf{Customer Information Portal}} \\ \hline
+Search products by brand name, generic name, or NDC and show availability as In Stock/Low Stock/Out of Stock (no exact quantities). & Must \\ \hline
+Display the retail (cash) price with a note that insurance pricing may differ. & Must \\ \hline
+Use device location or a ZIP code to list the nearest pharmacies with the item in stock, sorted by distance, with a map and directions. & Must \\ \hline
+Hide availability of Schedule II controlled substances and display ``Contact pharmacy for availability.'' & Must \\ \hline
+Show generic alternatives and let registered customers subscribe to back-in-stock notifications. & Should \\ \hline
+\multicolumn{2}{|>{\raggedright\arraybackslash}m{(\linewidth - 2\tabcolsep) * \real{1.0000} + 2\tabcolsep}|}{%
+\textbf{Dashboards Reporting}} \\ \hline
+Provide a pharmacist dashboard summarizing low-stock items, expiring items, pending orders, and AI alerts. & Must \\ \hline
+Generate exportable reports on inventory value, stock movement, expiration losses, and forecast accuracy. & Should \\ \hline
+\end{longtable}
+}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.1582}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.8418}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Category}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\centering
+\textbf{Non-Functional Requirement}
+\end{minipage} \\
+\hline
+\endhead
+
+\caption*{Table 3.2. Non-Functional Requirements}\\
+\endlastfoot
+Performance & Customer searches return results within 2 seconds; inventory changes appear system-wide within 5 seconds. \\ \hline
+Scalability & Support at least 100 pharmacies, 20,000 products per store, and 1,000 concurrent customer sessions. \\ \hline
+Availability & 99.5\% uptime, with maintenance scheduled outside business hours; daily backups with recovery within 4 hours. \\ \hline
+Security & Encrypt all data in transit and at rest, store passwords securely (hashed), and test against common web vulnerabilities. \\ \hline
+Privacy \& Compliance & Meet Health Insurance Portability and Accountability Act (HIPAA) safeguards, keep Drug Supply Chain Security Act (DSCSA) lot traceability records, and use customer location only with consent and never store it. \\ \hline
+Usability & Common staff tasks take no more than 3 clicks from the dashboard; the customer portal meets Web Content Accessibility Guidelines (WCAG) 2.1 AA accessibility. \\ \hline
+Reliability & The store application queues transactions during an internet outage and syncs when reconnected. \\ \hline
+AI Quality & Demand forecasts target a Mean Absolute Percentage Error (MAPE) of 20\% or less for products with at least 6 months of sales history. \\ \hline
+Maintainability & Modular design with documented APIs and at least 70\% automated test coverage. \\ \hline
+\end{longtable}
+}
+
+\clearpage
+\section{4. Specification}\label{specification}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\centering\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.0582}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.2273}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.7145}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\centering
+\textbf{No.}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\centering
+\textbf{Function}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\centering
+\textbf{What the system will do}
+\end{minipage} \\
+\hline
+\endhead
+
+\caption*{Table 4.1. Functional Specification}\\
+\endlastfoot
+\multicolumn{3}{|>{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep) * \real{1.0000} + 4\tabcolsep}|}{%
+\textbf{User Management and Security}} \\ \hline
+F1 & Staff sign-in and roles & Staff members will sign in with a username, a password and a second proof of identity, such as a one-time code. Each person then will only see the screens and actions their role allows (Section 2). The System Administrator will create staff member accounts and assign them roles. \\ \hline
+F2 & Customer access and accounts & Customers will be able to search and view results without creating an account. A customer who chooses to register will gain extra features, such as back-in-stock notices (F23). \\ \hline
+F3 & Record of changes (audit log) & Every change to inventory will be recorded automatically, including who made it, when, and what changed, so any change will be able to be traced afterward. \\ \hline
+\multicolumn{3}{|>{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep) * \real{1.0000} + 4\tabcolsep}|}{%
+\textbf{Inventory Management}} \\ \hline
+F4 & Product records & Staff members will be able to add a product, change its details, or deactivate it. Each product will have a name, National Drug Code (NDC), strength, dosage form, category, and price. \\ \hline
+F5 & Receiving stock & When a delivery arrives, staff members will scan each item's barcode or type its details by hand. The system will record the lot number, expiration date, quantity, supplier, and add the quantity to stock on hand. \\ \hline
+F6 & Sales and stock corrections & Each sale recorded at the pharmacy's point-of-sale system (the checkout) will reduce stock on hand automatically. Staff will also be able to correct a quantity by hand and in doing so must select a reason. Manual corrections will take effect only when a Pharmacist/Manager approves them (Section 2). \\ \hline
+F7 & Stock on hand & For every product, staff will be able to see the quantity currently on hand broken down by lot, search, and filter the list. Receipts, sales, and corrections will show up within 5 seconds (Section 3). \\ \hline
+F8 & Physical counts & During a physical count (cycle count), staff members will enter the quantity they counted. The system will compare it with the recorded quantity and flag any difference for a Pharmacist/Manager to review. \\ \hline
+\multicolumn{3}{|>{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep) * \real{1.0000} + 4\tabcolsep}|}{%
+\textbf{Expiration Management}} \\ \hline
+F9 & Expiration tracking & The system will keep the expiration date of every lot and show a dashboard of items that have expired or will expire within 30, 60, or 90 days. \\ \hline
+F10 & Expiration alerts and sale block & Once a day, the system will alert the Pharmacist/Manager and the Technician about expired and soon-to-expire items. Expired stock won't be able to be sold: the system will block the sale. \\ \hline
+F11 & Use-first advice and disposal records & When a product has more than one lot on hand, the system will recommend using the lot that expires first. When expired items are disposed of, or when products are returned to the supplier, staff members will record it and the system will calculate the lost value in dollars. \\ \hline
+\multicolumn{3}{|>{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep) * \real{1.0000} + 4\tabcolsep}|}{%
+\textbf{Reordering and Suppliers}} \\ \hline
+F12 & Supplier records and reorder points & Staff members will keep a record for each supplier (contact details, delivery lead time, minimum order, prices) and set a reorder point for each product: the stock level at which more should be ordered. \\ \hline
+F13 & Reorder alerts and draft orders & When a product's stock falls to its reorder point, the system will alert staff members and prepare a draft purchase order. A draft will go no further until a Pharmacist/Manager approves it. \\ \hline
+F14 & Sending and tracking orders & An approved order will be sent to the supplier. Staff members will be able to follow each order's status from Draft through to Received. When the delivery arrives, the system will flag any difference between what was ordered and what was received. \\ \hline
+F15 & Expiration-risk and unusual-activity warnings & The system will point out lots that are likely to expire before they are sold and inventory activity that looks unusual. Each warning or recommendation will come with an explanation of why it was raised. \\ \hline
+\multicolumn{3}{|>{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep) * \real{1.0000} + 4\tabcolsep}|}{%
+\textbf{AI Chatbot and Machine Learning Analytics}} \\ \hline
+F16 & Demand forecasts & For each product, the system will estimate how much will be sold over the next 7, 30, and 90 days, based on past sales, the time of year, and trends. \\ \hline
+F17 & Reorder recommendations & The system will recommend a reorder point and an order quantity for each product. The pharmacist will be able to accept, change, or reject each recommendation. \\ \hline
+F18 & Human approval of AI output & The AI will only advise. No order will be placed and no stock record will be changed based on the AI output, until a person approves it. \\ \hline
+\multicolumn{3}{|>{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep) * \real{1.0000} + 4\tabcolsep}|}{%
+\textbf{Customer Information Portal}} \\ \hline
+F19 & Product search and availability & A customer will be able to search by brand name, generic name, or NDC. Each result will show the status as In Stock, Low Stock, or Out of Stock. Exact quantities will never be shown to the public. \\ \hline
+F20 & Price display & Each result will show the retail (cash) price, with a note that the price with insurance may differ. \\ \hline
+F21 & Nearest pharmacy & Using the customer's device location (with consent) or a ZIP code they may enter, the system will list the nearest participating pharmacies that have the item in stock, closest first, with a map and directions. The system will never store the customer's location. \\ \hline
+F22 & Controlled substances & For Schedule II controlled substances, availability will be hidden, and the customer will see ``Contact pharmacy for availability.'' \\ \hline
+F23 & Generic alternatives and back-in-stock notices & Results will show generic alternatives where they exist. A registered customer will be able to request notifications when an out-of-stock item is available again. \\ \hline
+\multicolumn{3}{|>{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep) * \real{1.0000} + 4\tabcolsep}|}{%
+\textbf{Dashboards and Reporting}} \\ \hline
+F24 & Pharmacist dashboard & A single screen will summarize low-stock items, expiring items, pending orders, and AI alerts. \\ \hline
+F25 & Reports & Staff will be able to produce reports on inventory value, stock movement, expiration losses, forecast accuracy, and export them for use outside the system. \\ \hline
+\end{longtable}
+}
+
+\clearpage
+\section{5. Programmed Meetings}\label{programmed-meetings}
+
+Meetings will be scheduled every Friday at 10:00 AM EST for Specification analysis and review, Requirements analysis and review, and System Architecture Design and Implementation.
+
+From September 11, 2026 - December 11, 2026
+
+\end{document}

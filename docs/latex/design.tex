@@ -1,0 +1,1659 @@
+% Compile from docs/latex with XeLaTeX. Shared formatting: common.tex.
+\input{common.tex}
+
+\begin{document}
+
+\begin{center}{\fontsize{12}{14}\selectfont\itshape Draft: Version 0.1\par}\end{center}
+
+Course: Software Engineering
+
+Team: Seal-SIMD
+
+Team Members: Maria Molano Escobar, Marko Maksuti, Ryan Petillo, Samuel Cordova
+
+Instructor: Hubert Johnson
+
+Date: October 29, 2026
+
+\projecttitle{AI-Driven Pharmaceutical Real-Time Inventory and Customer Information System}
+
+AI-Driven Pharmaceutical Real-Time Inventory and Customer Information System
+
+\clearpage
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4749}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4765}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Document control}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Value}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Team & Seal-SIMD \\ \hline
+Contributors (SRS team) & Maria Molano Escobar; Marko Maksuti; Ryan Petillo; Samuel Cordova \\ \hline
+Course/instructor & CSIT 515 Software Engineering \& Reliability / Dr. Hubert Johnson \\ \hline
+Due date & October 29, 2026 (Week 8) \\ \hline
+Version & 1.0 --- proposed detailed design, review draft \\ \hline
+Baseline & Software Requirements Specification v0.2, October 1, 2026 \\ \hline
+Section authors/module owners & To be assigned and confirmed by team; do not infer individual contributions \\ \hline
+\end{longtable}
+}
+
+Submission note: The course schedule calls for TWO copies and compiled (not yet tested) kernel module drivers. This document specifies the module-driver contracts; source-code compilation and the physical two-copy submission must be completed separately.
+
+\clearpage
+\tableofcontents
+
+The numbered sections below are navigation headings in the editable Word document. Update this contents list if section numbering changes.
+
+\clearpage
+\section{1. Executive Summary and Design Basis}\label{executive-summary-and-design-basis}
+
+The product consists of a Pharmacy Operations application for authenticated staff and a Customer Information Portal for public searches. Both use one documented backend and shared inventory records. Staff receive stock by lot, record sales, review expiration warnings, approve corrections and draft orders, and consult machine-learning demand forecasts. Customers search medications, see cash prices and coarse availability, and locate participating pharmacies. The first implementation focuses on a working, auditable kernel rather than attempting every optional feature.
+
+This design turns the approved SRS behavior into component boundaries, persistent entities, service interfaces, state transitions, failure handling, pseudocode, and prospective tests. The architecture, technology choices, schema, endpoints, thresholds, and error identifiers below are PROPOSED engineering decisions, not claims that the team has already built or agreed upon.
+
+\clearpage
+\section{2. System Scope, Assumptions and Decisions}\label{system-scope-assumptions-and-decisions}
+
+\subsection{2.1 Core deliverable and extensions}\label{core-deliverable-and-extensions}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3116}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3292}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3116}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Package}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Included behavior}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Priority/strategy}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Kernel K0 & Products, stores, lots, atomic stock movements, authentication/roles, audit, expiration and sale blocking, staff read screens, customer safe search & First: integrated skeleton \\ \hline
+Operational K1 & Supplier and reorder thresholds, draft orders and manager approval, dashboard, POS adapter & Next \\ \hline
+Analytics K2 & Sales history, forecast interface, 7/30/90 day baseline model, suggestions requiring approval & Next; degrade to rules when model unavailable \\ \hline
+Extensions E1 & Cycle counts, supplier transmission, disposal/FEFO, export reports, back-in-stock and generic alternatives & Only after kernel works \\ \hline
+Extensions E2 & Advanced chatbot, anomaly detection, production-grade offline synchronization, true map/directions integrations & Scoped prototype or deferred \\ \hline
+\end{longtable}
+}
+
+\subsection{2.2 Exclusions inherited from SRS}\label{exclusions-inherited-from-srs}
+
+No dispensing or e-prescribing, no insurance claims, no payments, no home delivery, and no medical or dosing advice. Customer search never exposes exact inventory counts. Schedule II availability is replaced by a contact-pharmacy message.
+
+\subsection{2.3 Cross-cutting decisions requiring team approval}\label{cross-cutting-decisions-requiring-team-approval}
+
+\begin{quote}
+· Choose one application stack and hosting arrangement; the modules here are technology-neutral except for REST/JSON and relational-store notation.
+
+· Treat the database as the source of truth for inventory; the ML/chat layer cannot write inventory or authorize purchase orders.
+
+· Use signed server-side transactions for each stock mutation and attach an idempotency key to external event ingestion.
+
+· Do not claim HIPAA or DSCSA certification from a classroom prototype: implement applicable safeguards and document a compliance gap analysis.
+
+· For demonstrations, use synthetic medication, inventory, user, and sales data; no real customer medical information.
+\end{quote}
+
+
+
+
+
+\clearpage
+\section{3. Overall Architecture and Deployment}\label{overall-architecture-and-deployment}
+
+Component layout (logical, not a deployed implementation):
+
+\begin{quote}
+CUSTOMER WEB UI STAFF WEB UI
+
+\textbar{} \textbar{}
+
++-\/-\/- HTTPS / REST API -\/-\/-+
+
+\textbar{}
+
+Auth + RBAC + Validation
+
+\textbar{}
+
+Product / Inventory / Lots / Expiration / Orders / Search
+
+\textbar{}
+
+Transactional relational database + Audit
+
+\textbar{}
+
+Background worker: alerts/forecasts/notifications
+
+\textbar{}
+
+External adapters: POS / Supplier / Map / Mail
+\end{quote}
+
+\subsection{3.1 Separation and dependencies}\label{separation-and-dependencies}
+
+User interfaces call API application services, not the database. Application services invoke repository abstractions and authorization checks; all inventory mutations use the Stock Ledger service. External systems are behind adapters. Search derives a safe public projection rather than querying raw lots. The forecasting service consumes historical aggregates and returns advisory objects only.
+
+\subsection{3.2 Component dependency rules}\label{component-dependency-rules}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4733}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4781}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Caller}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Allowed dependencies}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Staff UI / customer UI & HTTP API contracts only \\ \hline
+Inventory, Ordering, Expiration & Product, Store, Repository, Auth context, Audit \\ \hline
+Public Search & Product public projection, Availability classifier, Store lookup \\ \hline
+Forecast service & Read-only Sales History and Inventory snapshots \\ \hline
+Adapters & Only published integration ports; no direct stock writes \\ \hline
+Jobs & Application-service commands with service identity and audited outcomes \\ \hline
+\end{longtable}
+}
+
+\subsection{3.3 Deployment and failure boundaries}\label{deployment-and-failure-boundaries}
+
+For a semester prototype, one backend instance, one relational database, and a worker process are sufficient. The UI should show an explicit last-updated timestamp. A temporary failed POS connection is queued and retried with the same event ID, not counted twice. When the ML service is unavailable, manual reorder thresholds and the inventory kernel remain usable. A future deployment may separate workers and add redundancy without changing public contracts.
+
+
+
+
+
+
+
+
+
+\clearpage
+\section{4. Design Conventions and Global Contracts}\label{design-conventions-and-global-contracts}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4765}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4749}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Convention}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Rule}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Identifiers & UUID-like opaque IDs; NDC remains a string (preserve leading zeros) \\ \hline
+Time & Store timestamps in UTC; display local pharmacy time; expiration is date in pharmacy local calendar \\ \hline
+Money & Decimal cents or fixed decimal; never binary floating-point for money \\ \hline
+Quantities & Nonnegative integer on-hand; signed deltas in ledger with atomic checks \\ \hline
+API responses & JSON result \{data, requestId\} or \{error: \{code, message, details\}, requestId\} \\ \hline
+Authorization & Server enforces role and store scope on every operation \\ \hline
+Versioning & Proposed /api/v1/*; breaking changes require a new version \\ \hline
+Mutation retries & Idempotency key for POS, stock receipt, and approved external transmissions \\ \hline
+Concurrency & Atomic compare-and-update or row lock for lot decrement \\ \hline
+Pagination & Cursor or bounded page limit; default 25, max 100 \\ \hline
+\end{longtable}
+}
+
+\subsection{4.1 Common state and invariant definitions}\label{common-state-and-invariant-definitions}
+
+\begin{quote}
+· Available-to-sell = sum of active, unexpired, non-quarantined lot quantities in a store; do not promise availability from stale inventory.
+
+· A ledger row is append-only; a correction is a new compensating movement, never a deletion.
+
+· Only authorized pharmacist/manager approval transitions a pending adjustment or purchase order to approved.
+
+· Every committed stock delta and corresponding audit event occur in one transaction.
+
+· An expired lot cannot be selected for sale, even if an earlier search result showed stock.
+\end{quote}
+
+\subsection{4.2 Shared error catalog}\label{shared-error-catalog}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4957}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4556}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Error}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Cause/responsee}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+VALIDATION\_ERROR & Field missing, malformed, or out of range; 400 \\ \hline
+UNAUTHENTICATED & No valid staff session; 401 \\ \hline
+FORBIDDEN & Role or store access denied; 403 \\ \hline
+NOT\_FOUND & Resource absent or hidden; 404 \\ \hline
+CONFLICT & Concurrent modification, duplicate or invalid state; 409 \\ \hline
+INSUFFICIENT\_STOCK & Sale exceeds sellable quantity; 409 \\ \hline
+EXPIRED\_LOT & Attempted sale of expired lot; 409 \\ \hline
+DEPENDENCY\_UNAVAILABLE & POS, supplier, forecast, or map service unavailable; 503 \\ \hline
+INTERNAL\_ERROR & Unexpected failure; generic public response and internal correlation ID; 500 \\ \hline
+\end{longtable}
+}
+
+
+
+
+
+
+
+
+\clearpage
+\section{5. Data Model and Invariants}\label{data-model-and-invariants}
+
+Proposed normalized relational entities. Unique keys and constraints are design requirements; exact DDL depends on the team's database selection.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3196}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3244}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3084}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Entity}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Key fields}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Responsibility}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Store & id PK, name, address, postal\_code, latitude?, longitude?, timezone, active & Owns inventory and public search location \\ \hline
+User & id PK, email unique, password\_hash, mfa\_enabled, status & Staff login principal \\ \hline
+RoleAssignment & id PK, user\_id FK, store\_id FK, role & Scopes privilege to store \\ \hline
+Product & id PK, ndc unique, brand\_name, generic\_name, strength, form, category, schedule\_class, active & Canonical catalog \\ \hline
+StoreProduct & id PK, store\_id FK, product\_id FK, cash\_price, reorder\_point, low\_stock\_threshold, active & Per-store listing and settings \\ \hline
+Supplier & id PK, name, contact, lead\_days, minimum\_order & Procurement master \\ \hline
+Lot & id PK, store\_product\_id FK, supplier\_id FK, lot\_number, expires\_on, qty\_on\_hand, status, version & Lots and safety/expiry \\ \hline
+StockMovement & id PK, lot\_id FK, delta, type, reason, external\_event\_id?, actor\_id?, occurred\_at & Append-only stock ledger \\ \hline
+AdjustmentRequest & id PK, lot\_id FK, requested\_delta, reason, status, requested\_by, reviewed\_by? & Approval workflow \\ \hline
+PurchaseOrder & id PK, store\_id FK, supplier\_id FK, status, created\_by, approved\_by?, created\_at & Ordering \\ \hline
+PurchaseOrderLine & id PK, order\_id FK, product\_id FK, qty, unit\_price & Order line items \\ \hline
+SalesEvent & id PK, external\_event\_id unique, store\_id, product\_id, qty, sold\_at & Idempotent sales history \\ \hline
+Forecast & id PK, store\_product\_id FK, horizon\_days, predicted\_units, generated\_at, model\_version, quality? & Advisory output \\ \hline
+Recommendation & id PK, store\_product\_id FK, suggested\_qty, reason, status, reviewer\_id? & Requires human decision \\ \hline
+AuditEvent & id PK, actor\_id?, store\_id?, action, entity\_type, entity\_id, before\_json?, after\_json?, at & Audit trail \\ \hline
+Alert & id PK, store\_id, alert\_type, resource\_id, severity, created\_at, viewed\_at? & Expiration / low-stock \\ \hline
+Subscription & id PK, customer\_id, store\_product\_id, status & Optional customer notification \\ \hline
+\end{longtable}
+}
+
+\subsection{5.1 Primary relationships}\label{primary-relationships}
+
+Store 1:N StoreProduct; Product 1:N StoreProduct; StoreProduct 1:N Lot; Lot 1:N StockMovement; Store 1:N PurchaseOrder; PurchaseOrder 1:N PurchaseOrderLine; StoreProduct 1:N Forecast and Recommendation. User N: M Store through RoleAssignment. AuditEvent refers to the target by type and ID to avoid coupling to every domain table.
+
+\subsection{5.2 Constraints}\label{constraints}
+
+\begin{quote}
+· Lot quantity \textgreater= 0; purchase-order quantities \textgreater{} 0; cash price \textgreater= 0; forecast horizon ∈ \{7, 30, 90\}.
+
+· For each lot, (store\_product\_id, lot\_number, supplier\_id) is unique unless a merge policy is explicitly adopted.
+
+· A stock receipt cannot record an expiration date already past without explicitly quarantining the lot.
+
+· Controlled substance classification is validated when product details are saved; never inferred from free text at search time.
+
+· SalesEvent.external\_event\_id is unique for replay safety; StockMovement carries its upstream event reference.
+\end{quote}
+
+\clearpage
+\section{6. Detailed Module Specifications}\label{detailed-module-specifications}
+
+Each module lists its abstract, subparts, imports/exports, inputs and outputs, pre/postconditions, error handling, side effects, and prospective tests. Interfaces are design contracts, not claims of implemented code.
+
+\subsection{M01 Identity and Authorization (F1, F2)}\label{m01-identity-and-authorization-f1-f2}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4636}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4877}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Create authenticated staff context; enforce store-scoped RBAC and MFA. \\ \hline
+Subparts & CredentialValidator, SessionService, RolePolicy \\ \hline
+Imports & UserRepository, RoleAssignmentRepository, MFA provider \\ \hline
+Exports/signaturess & login(email,password,otp)-\textgreater Session; authorize(actor,action,store)-\textgreater Decision \\ \hline
+Inputs & email, password, OTP, store ID \\ \hline
+Outputs & staff session or access-denied message \\ \hline
+Preconditions & User active; MFA challenge satisfied for staff. \\ \hline
+Postconditions and invariants & Every accepted command is authorized for the named store. \\ \hline
+Error handling & Invalid credentials, expired OTP, locked user, missing role: deny access. \\ \hline
+Side effects & Session issuance, audit login activity. \\ \hline
+Representative test cases & Expired OTP; technician tries to approve; user assigned to another store. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline/module driver}
+
+\begin{quote}
+driver\_M01(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M02 Product Catalog (F4, F19, F22)}\label{m02-product-catalog-f4-f19-f22}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4668}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4845}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Maintain standardized product descriptors and controlled-substance category. \\ \hline
+Subparts & ProductValidator, ProductRepository \\ \hline
+Imports & Authorization, Audit \\ \hline
+Exports/signatures & createProduct(dto)-\textgreater Product; updateProduct(id,patch)-\textgreater Product; lookup(query)-\textgreater Products \\ \hline
+Inputs & NDC, brand/generic name, strength, form, schedule class \\ \hline
+Outputs & catalog record or validation error \\ \hline
+Preconditions & NDC is a nonempty, unique string; staff role permitted. \\ \hline
+Postconditions and invariants & Valid product saved with audit; deactivation hides it from normal listings. \\ \hline
+Error handling & Duplicate NDC and missing dosage form rejected. \\ \hline
+Side effects & Catalog write and audit entry. \\ \hline
+Representative test cases & Leading-zero NDC; inactive product; Schedule II public query. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline / module driver}
+
+\begin{quote}
+driver\_M02(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M03 Stock Receiving and Lot Registry (F5, F7)}\label{m03-stock-receiving-and-lot-registry-f5-f7}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.3353}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.6160}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Register receipts and maintain lot-level physical counts. \\ \hline
+Subparts & ReceiptValidator, LotMatcher, ReceiptCommand \\ \hline
+Imports & Product, StoreProduct, StockLedger, Supplier \\ \hline
+Exports/signatures & receiveStock(storeId,productId,lot,expiry,qty,supplier,idempotencyKey)-\textgreater Receipt \\ \hline
+Inputs & positive quantity, lot number, expiration date, supplier \\ \hline
+Outputs & updated lot and receipt reference \\ \hline
+Preconditions & Store/product/supplier active; qty positive; date valid. \\ \hline
+Postconditions and invariants & Stock rises exactly once; movement + audit committed atomically. \\ \hline
+Error handling & Unknown product, duplicate receipt, or inconsistent lot date. \\ \hline
+Side effects & Lot and movement rows created; alerts may be refreshed. \\ \hline
+Representative test cases & Retry same barcode upload; same lot with different expiry; quantity zero. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline/module driver}
+
+\begin{quote}
+driver\_M03(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M04 Stock Ledger and Sales (F3, F6, F7, F10)}\label{m04-stock-ledger-and-sales-f3-f6-f7-f10}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4492}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.5021}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Sole writer for stock delta; decrement safely and reject expired lots. \\ \hline
+Subparts & LotSelector, StockTransaction, IdempotencyGuard \\ \hline
+Imports & Database, Product, Audit \\ \hline
+Exports/signatures & applySale(storeId,productId,qty,eventId)-\textgreater SaleResult; getStock(productId,storeId)-\textgreater StockView \\ \hline
+Inputs & sale quantity, event ID, current lot snapshot \\ \hline
+Outputs & new stock summary or explicit rejection \\ \hline
+Preconditions & qty\textgreater0; active product; all selected lots nonexpired and available. \\ \hline
+Postconditions and invariants & No lot negative; exact quantity decremented once; ledger and audit persist. \\ \hline
+Error handling & Insufficient eligible lots; concurrent conflict; duplicate event replays same result. \\ \hline
+Side effects & Transactional update of lots and sales ledger. \\ \hline
+Representative test cases & Last unit sold twice; expired-only stock; POS event replay. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline / module driver}
+
+\begin{quote}
+driver\_M04(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M05 Adjustments and Cycle Counts (F6, F8)}\label{m05-adjustments-and-cycle-counts-f6-f8}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4556}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4957}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Collect discrepancy requests and enforce manager approval before adjustment. \\ \hline
+Subparts & CountComparison, AdjustmentStateMachine \\ \hline
+Imports & StockLedger, Authorization, Audit \\ \hline
+Exports/signatures & requestAdjustment(lot,delta,reason)-\textgreater Request; approveAdjustment(id,reviewer)-\textgreater Result \\ \hline
+Inputs & count quantity or signed change with reason \\ \hline
+Outputs & pending/approved/rejected adjustment \\ \hline
+Preconditions & Technician may request; reviewer must hold manager role. \\ \hline
+Postconditions and invariants & Approved changes applied once and logged; rejected leave stock unchanged. \\ \hline
+Error handling & Self-approval policy TBD; stale lot version forces recheck. \\ \hline
+Side effects & Writes request and (if approved) stock movement. \\ \hline
+Representative test cases & Repeated approval; stale count; negative resulting stock. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline/module driver}
+
+\begin{quote}
+driver\_M05(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M06 Expiration Management (F9, F10, F11)}\label{m06-expiration-management-f9-f10-f11}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4588}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4925}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Classify lots by expiry and prevent outdated lots from sale. \\ \hline
+Subparts & ExpiryClassifier, AlertScheduler, FEFOAdvisor \\ \hline
+Imports & LotRepository, Alerts, StockLedger \\ \hline
+Exports/signatures & listExpiring(storeId,days)-\textgreater Lots; isSellable(lot,date)-\textgreater bool; recommendFEFO(product,store)-\textgreater Lots \\ \hline
+Inputs & threshold 30/60/90, local store date \\ \hline
+Outputs & classified lots and alert list \\ \hline
+Preconditions & date in store timezone; range in approved values. \\ \hline
+Postconditions and invariants & Expired lot excluded from sale; alerts generated daily without duplicates. \\ \hline
+Error handling & Invalid threshold, worker outage, or timezone ambiguity. \\ \hline
+Side effects & Alert upsert, optional disposal movement. \\ \hline
+Representative test cases & Expires today; midnight boundary; same alert rerun. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline/module driver}
+
+\begin{quote}
+driver\_M06(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M07 Suppliers and Purchase Orders (F12, F13, F14)}\label{m07-suppliers-and-purchase-orders-f12-f13-f14}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4684}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4829}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Maintain supplier master, draft orders, and controlled approval states. \\ \hline
+Subparts & SupplierRepository, OrderStateMachine, SupplierAdapter \\ \hline
+Imports & Authorization, Product, Inventory, Audit \\ \hline
+Exports/signaturess & draftOrder(lines)-\textgreater Order; approveOrder(id,user)-\textgreater Order; sendOrder(id)-\textgreater DeliveryStatus \\ \hline
+Inputs & supplier, lines, qty, and price \\ \hline
+Outputs & order status and confirmation/failure \\ \hline
+Preconditions & Supplier active; positive lines; manager authorization for approval. \\ \hline
+Postconditions and invariants & Only approved orders may be sent; transitions audited. \\ \hline
+Error handling & Duplicate approval; incomplete supplier contact; adapter failure. \\ \hline
+Side effects & Order rows, audit, and external dispatch only after approval. \\ \hline
+Representative test cases & Technician approves; failed send retry; partial shipment. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline/module driver}
+
+\begin{quote}
+driver\_M07(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M08 Reorder Rules and Suggestions (F13, F17, F18)}\label{m08-reorder-rules-and-suggestions-f13-f17-f18}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4572}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4941}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Recommend replenishment quantities from thresholds and forecasts; never auto-commit. \\ \hline
+Subparts & ThresholdEngine, SuggestionComposer \\ \hline
+Imports & Inventory, Supplier, Forecast \\ \hline
+Exports/signatures & evaluateReorder(storeProductId)-\textgreater Suggestion; reviewSuggestion(id,decision,qty)-\textgreater Result \\ \hline
+Inputs & stock, lead days, forecast, manager action \\ \hline
+Outputs & human-reviewable draft and rationale \\ \hline
+Preconditions & Input snapshot version known; final choice validated. \\ \hline
+Postconditions and invariants & Accept/edit/reject recorded; no stock mutation on mere suggestion. \\ \hline
+Error handling & Missing forecast uses threshold fallback; invalid edited qty rejected. \\ \hline
+Side effects & Recommendation state and audit only. \\ \hline
+Representative test cases & Zero history; huge forecast; AI recommends restricted action. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline/module driver}
+
+\begin{quote}
+driver\_M08(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M09 Sales History and Forecasting (F16, F17)}\label{m09-sales-history-and-forecasting-f16-f17}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4588}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4925}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Estimate 7/30/90 day demand from sales without write access to inventory. \\ \hline
+Subparts & HistoryAggregator, ForecastAdapter, BaselineModel \\ \hline
+Imports & SalesEvent read-only, Product catalog \\ \hline
+Exports/signatures & forecast(storeProductId,horizon)-\textgreater ForecastResult \\ \hline
+Inputs & time-series aggregates, horizon \\ \hline
+Outputs & predicted nonnegative units and model metadata \\ \hline
+Preconditions & horizon allowed; sufficient history for trained model or fallback. \\ \hline
+Postconditions and invariants & Forecast stored as advisory with run timestamp. \\ \hline
+Error handling & No history returns labeled insufficient-data/baseline result. \\ \hline
+Side effects & Forecast cache/write only; no purchase or inventory changes. \\ \hline
+Representative test cases & Intermittent sales; 0-demand series; missing model. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline/module driver}
+
+\begin{quote}
+driver\_M09(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M10 Public Catalog and Availability (F19, F20, F22)}\label{m10-public-catalog-and-availability-f19-f20-f22}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4588}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4925}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Expose safe, non-counting medication search with cash price. \\ \hline
+Subparts & PublicProjection, AvailabilityClassifier \\ \hline
+Imports & Product, Inventory read-only, StoreProduct \\ \hline
+Exports/signatures & searchProducts(query,storeFilter)-\textgreater PublicSearchResult \\ \hline
+Inputs & brand, generic, NDC; optional pharmacy \\ \hline
+Outputs & public product rows and status text \\ \hline
+Preconditions & Request bounded, rate-limited, and properly sanitized. \\ \hline
+Postconditions and invariants & Never expose quantities or controlled Schedule II stock. \\ \hline
+Error handling & No results empty list; unavailable store omitted. \\ \hline
+Side effects & Read-only, optional search audit aggregate. \\ \hline
+Representative test cases & Controlled drug; all lots expired; low-stock boundary. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation ooutline/moduledriver}
+
+\begin{quote}
+driver\_M10(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M11 Pharmacy Proximity (F21)}\label{m11-pharmacy-proximity-f21}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4588}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4925}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Rank participating pharmacies with stock by distance from consented location or ZIP. \\ \hline
+Subparts & LocationResolver, DistanceSorter, MapAdapter \\ \hline
+Imports & PublicAvailability, Store catalog \\ \hline
+Exports/signatures & nearby(productId,locationOrZip)-\textgreater PharmacyList \\ \hline
+Inputs & coarse ZIP or temporary latitude/longitude \\ \hline
+Outputs & sorted list, distance, and directions link \\ \hline
+Preconditions & Consent before precise location; no persistence of coordinates. \\ \hline
+Postconditions and invariants & Returned eligible stores sorted by ascending distance. \\ \hline
+Error handling & ZIP unresolved; maps service outage returns list if possible. \\ \hline
+Side effects & None; access logs must omit precise coordinates. \\ \hline
+Representative test cases & Equal distances; unavailable GPS; invalid ZIP. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline/module driver}
+
+\begin{quote}
+driver\_M11(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M12 Dashboard and Alerts (F9, F10, F13, F24)}\label{m12-dashboard-and-alerts-f9-f10-f13-f24}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.2503}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.7011}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Aggregate low-stock, expiring, orders, and analytics notices. \\ \hline
+Subparts & DashboardQuery, AlertPublisher \\ \hline
+Imports & Inventory, Expiration, Orders, Forecast \\ \hline
+Exports/signatures & getDashboard(storeId)-\textgreater DashboardDTO; runDailyAlerts(storeId,date)-\textgreater Summary \\ \hline
+Inputs & store scope, reporting date \\ \hline
+Outputs & counts/categories and alert items \\ \hline
+Preconditions & Staff role authorized for store. \\ \hline
+Postconditions and invariants & Dashboard reflects committed state; alerts idempotent per day. \\ \hline
+Error handling & Partial analytics failure flagged instead of hiding inventory data. \\ \hline
+Side effects & Alert rows, job-run metrics. \\ \hline
+Representative test cases & No alerts; repeat daily job; stale forecast. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline/module driver}
+
+\begin{quote}
+driver\_M12(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M13 Reporting and Audit (F3, F25)}\label{m13-reporting-and-audit-f3-f25}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4652}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4861}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Provide append-only accountability and optional aggregate exports. \\ \hline
+Subparts & AuditWriter, ReportQueries, ExportSerializer \\ \hline
+Imports & All command services, Authorization \\ \hline
+Exports/signatures & recordAudit(event)-\textgreater void; exportReport(type,period)-\textgreater File \\ \hline
+Inputs & actor, entity changes, filter range \\ \hline
+Outputs & audit trail or CSV \\ \hline
+Preconditions & Actor context and valid range; export permission. \\ \hline
+Postconditions and invariants & Every stock mutation has a linked audit; report aggregates reconciled. \\ \hline
+Error handling & Missing actor uses service identity; disallow unauthorized exports. \\ \hline
+Side effects & Audit append, optional report file. \\ \hline
+Representative test cases & Date boundary; escaped CSV injection; audit logging failure aborts stock commit. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline/module driver}
+
+\begin{quote}
+driver\_M13(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M14 POS Integration Adapter (F6, F10)}\label{m14-pos-integration-adapter-f6-f10}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4604}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4909}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Accept sales notifications and translate them into ledger sale commands. \\ \hline
+Subparts & EventValidator, RetryQueue, POSMapper \\ \hline
+Imports & M04 Stock Ledger \\ \hline
+Exports/signatures & ingestSale(externalId,payload)-\textgreater Acknowledgment \\ \hline
+Inputs & Sale notification with unique ID \\ \hline
+Outputs & accepted, already-processed, or failed \\ \hline
+Preconditions & Authenticated source, valid schema, nonexpired sellable units. \\ \hline
+Postconditions and invariants & Each external sale applied at most once. \\ \hline
+Error handling & Bad signature, malformed item, dependency outage; retry safely. \\ \hline
+Side effects & Queue records and downstream ledger transaction. \\ \hline
+Representative test cases & Duplicate events; out-of-order corrections; timeout after commit. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline/module driver}
+
+\begin{quote}
+driver\_M14(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M15 Customer Accounts and Notices (F2, F23)}\label{m15-customer-accounts-and-notices-f2-f23}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4572}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4941}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Optionally register customers and send opt-in stock notices. \\ \hline
+Subparts & CustomerAuth, SubscriptionService, NotificationWorker \\ \hline
+Imports & Public Catalog, Mail Adapter \\ \hline
+Exports/signatures & subscribe(customer,product,store)-\textgreater Subscription; sendBackInStock()-\textgreater Summary \\ \hline
+Inputs & consent and contact address \\ \hline
+Outputs & subscription confirmation or notification \\ \hline
+Preconditions & Registration/verification and opt-in complete. \\ \hline
+Postconditions and invariants & No personal health details included in outbound notice; unsubscribe supported. \\ \hline
+Error handling & Invalid address or mail failure retried safely. \\ \hline
+Side effects & Customer record, subscription, delivery log. \\ \hline
+Representative test cases & Guest user subscribes; repeated notice; opt-out. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline / module driver}
+
+\begin{quote}
+driver\_M15(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\subsection{M16 AI Chat Interface (F15, F18)}\label{m16-ai-chat-interface-f15-f18}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4668}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4845}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design item}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Specification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Abstract & Offer explanations of forecast/reorder data without privileged state mutation. \\ \hline
+Subparts & IntentRouter, ReadOnlyToolGateway, Guardrail \\ \hline
+Imports & Forecast, Recommendations, Auth \\ \hline
+Exports/signatures & answer(question,context)-\textgreater Answer \\ \hline
+Inputs & authorized user question \\ \hline
+Outputs & text answer with cited internal facts and warning \\ \hline
+Preconditions & User authenticated for staff-sensitive answers. \\ \hline
+Postconditions and invariants & Read-only operations; any proposed action becomes an explicit review request. \\ \hline
+Error handling & Unsupported questions, unsafe medical advice, and hallucinated facts are refused/qualified. \\ \hline
+Side effects & Optional read-only telemetry. \\ \hline
+Representative test cases & Prompt tries automatic purchase; asks dosing; missing data. \\ \hline
+\end{longtable}
+}
+
+\textbf{Implementation outline / module driver}
+
+\begin{quote}
+driver\_M16(sampleInput, mockedDependencies):
+
+validate\_contract(sampleInput)
+
+configure\_mocked\_imports()
+
+result = invoke\_module\_export(sampleInput)
+
+print(result.status, result.errorCode, result.outputSummary)
+
+return result
+\end{quote}
+
+Driver status on October 29: this is the required interface outline only; this design document does not verify compilation and implementation.
+
+\clearpage
+\section{7. End-to-End Workflows and Use-Case Realization}\label{end-to-end-workflows-and-use-case-realization}
+
+\textbf{UC-01 Receive stock}
+
+Technician selects store and product → provides lot, expiration, supplier, and positive quantity → M03 checks identity and metadata → M04 ledger commits receipt and audit together → dashboard/search eventually refresh. If a duplicate idempotency key is retried, return original receipt; a conflicting duplicate is rejected.
+
+\textbf{UC-02 POS sale}
+
+POS adapter validates event → M04 loads all eligible nonexpired lots ordered by soonest expiry → locks rows → checks sellable total → allocates quantity across lots → writes movements, SalesEvent and audit → commits → acknowledges. If insufficient, rolls back and returns reason; POS requires operational exception resolution.
+
+\textbf{UC-03 Manual stock correction}
+
+Technician submits reasoned correction → M05 creates PENDING request → pharmacist/manager reviews underlying count → approves or rejects → approval calls M04 under transaction and writes audit → requester receives new state. An approval request cannot be processed twice.
+
+\textbf{UC-04 Expiration check}
+
+Daily worker selects lots by local expiration date → buckets into expired / within 30 / 60 / 90 days → upserts store alerts → M04 independently enforces expired-sale block at transaction time.
+
+\textbf{UC-05 Reordering}
+
+Stock falls below product threshold → M08 proposes quantity, optionally using M09 forecast → M07 creates Draft order → manager reviews and approves → optional supplier adapter dispatches → receipt is recorded separately through UC-01.
+
+\textbf{UC-06 Public medication lookup}
+
+Customer searches brand, generic, or NDC → M10 normalizes query → excludes inactive listings → masks Schedule II availability → for other drugs, derives status from unexpired stock thresholds → returns retail cash price with insurance disclaimer and NO exact quantities.
+
+\textbf{UC-07 Nearest pharmacy}
+
+Customer grants GPS consent or types ZIP \ensuremath{\rightarrow} M11 obtains temporary origin \ensuremath{\rightarrow} filters participating pharmacies with safe in-stock public status \ensuremath{\rightarrow} sorts using calculated distance \ensuremath{\rightarrow} returns map/directions if provider available; origin is not stored.
+
+\textbf{UC-08 Forecast review}
+
+Scheduled or manual request selects 7/30/90-day horizon → M09 aggregates past sales and produces advisory forecast → M08 turns it into explainable suggestion → manager accepts, edits or rejects; only an explicitly approved order proceeds.
+
+\subsection{7.1 State-transition tables}\label{state-transition-tables}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3132}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3357}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3035}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Entity}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Allowed transitions}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Disallowed transitions}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Adjustment & PENDING → APPROVED \textbar{} REJECTED & REJECTED → APPROVED; APPROVED → APPROVED \\ \hline
+Purchase order & DRAFT → APPROVED → SENT → PARTIALLY\_RECEIVED → RECEIVED; DRAFT → CANCELED & DRAFT → SENT; CANCELED → RECEIVED \\ \hline
+Recommendation & PROPOSED → ACCEPTED \textbar{} EDITED \textbar{} REJECTED & AI → stock updated directly \\ \hline
+Lot & ACTIVE → QUARANTINED \textbar{} DEPLETED \textbar{} EXPIRED; QUARANTINED → ACTIVE by authorized review & EXPIRED → directly sellable without review \\ \hline
+\end{longtable}
+}
+
+\clearpage
+\section{8. Interface Inventory}\label{interface-inventory}
+
+HTTP endpoints below are proposed external contracts. Internal module signatures appear in section 6. Status/error codes follow section 4.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 10\tabcolsep - 6\arrayrulewidth) * \real{0.1481}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 10\tabcolsep - 6\arrayrulewidth) * \real{0.2768}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 10\tabcolsep - 6\arrayrulewidth) * \real{0.1931}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 10\tabcolsep - 6\arrayrulewidth) * \real{0.1931}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 10\tabcolsep - 6\arrayrulewidth) * \real{0.1432}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Method}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Path}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Inputs}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Outputs}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Owner}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+POST & /auth/login & staff credentials / OTP & staff session & M01 \\ \hline
+GET & /products & query, pagination & catalog view & M02 \\ \hline
+POST & /stores/\{id\}/receipts & lot, qty, expiry, supplier, idempotency key & receipt summary & M03 \\ \hline
+GET & /stores/\{id\}/inventory & filters & per-lot authorized stock view & M04 \\ \hline
+POST & /stores/\{id\}/sales-events & POS event ID, lines & sale acknowledgment & M14 \\ \hline
+POST & /adjustments & lot, delta, reason & pending request & M05 \\ \hline
+POST & /adjustments/\{id\}/approve & version, decision & final adjustment status & M05 \\ \hline
+GET & /stores/\{id\}/expiring?days=30 & expiry threshold & expiry list & M06 \\ \hline
+POST & /orders & supplier, lines & draft order & M07 \\ \hline
+POST & /orders/\{id\}/approve & reviewer decision & approved order & M07 \\ \hline
+GET & /forecast/\{storeProductId\}?days=30 & horizon & advisory demand & M09 \\ \hline
+POST & /recommendations/\{id\}/review & accept/edit/reject & review outcome & M08 \\ \hline
+GET & /public/search & q, optional store & status + price, no qty & M10 \\ \hline
+GET & /public/nearby & product, ZIP or consented origin & ranked stores & M11 \\ \hline
+GET & /stores/\{id\}/dashboard & store & summary & M12 \\ \hline
+GET & /stores/\{id\}/reports & type, date range & CSV & M13 \\ \hline
+\end{longtable}
+}
+
+\clearpage
+\section{9. Security, Privacy and Reliability Design}\label{security-privacy-and-reliability-design}
+
+\subsection{9.1 Permission matrix}\label{permission-matrix}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 10\tabcolsep - 6\arrayrulewidth) * \real{0.1947}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 10\tabcolsep - 6\arrayrulewidth) * \real{0.1915}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 10\tabcolsep - 6\arrayrulewidth) * \real{0.1931}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 10\tabcolsep - 6\arrayrulewidth) * \real{0.1851}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 10\tabcolsep - 6\arrayrulewidth) * \real{0.1883}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Operation}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Technician}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Pharmacist / Manager}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{System admin}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Customer}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Receive stock & Yes & Yes & As assigned & No \\ \hline
+Approve adjustments & No & Yes & No by default & No \\ \hline
+Approve order & No & Yes & No by default & No \\ \hline
+View detailed lots & Yes & Yes & As assigned & No \\ \hline
+View public search & Yes & Yes & Yes & Yes \\ \hline
+Manage users/stores & No & No & Yes & No \\ \hline
+Review forecasts & Yes (read) & Yes (decide) & As assigned & No \\ \hline
+\end{longtable}
+}
+
+\subsection{9.2 Threat and failure analysis}\label{threat-and-failure-analysis}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4749}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4765}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Risk}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Mitigation/verification}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Unauthorized stock adjustment & RBAC and distinct approval transition; negative test for technician \\ \hline
+Double-counted POS event & Unique external event ID + transactional idempotency \\ \hline
+Expired stock sold & Enforce lot date inside same sale transaction, not only UI \\ \hline
+Race on last item & Row lock/optimistic version with atomic decrement and rollback \\ \hline
+Controlled substance disclosure & Public response projection masks Schedule II before response \\ \hline
+Customer geolocation retention & Use in memory only; redact location from logs and analytics \\ \hline
+Forecast hallucination/drift & Label model version, missing data, accuracy; no autonomous writes \\ \hline
+Audit omission & Atomic audit write in same commit; fail closed if unavailable \\ \hline
+Network outage & Retry with event IDs; display staleness and reconcile queue \\ \hline
+Lost database & Daily backup and documented restoration exercise \\ \hline
+\end{longtable}
+}
+
+\subsection{9.3 Explicit quality goals from SRS}\label{explicit-quality-goals-from-srs}
+
+Customer searches \textless2 seconds; changed inventory visible system-wide within 5 seconds; support target of 100 pharmacies, 20,000 products/store, 1,000 concurrent customer sessions; 99.5\% uptime and recovery within 4 hours; WCAG 2.1 AA for customer portal; at least 70\% automated test coverage; MAPE target \textless=20\% on products with 6+ months sales history. These are target acceptance criteria from the SRS, not measured results.
+
+\clearpage
+\section{10. Test Cases and Driver Specifications}\label{test-cases-and-driver-specifications}
+
+Compiled, not-tested module drivers on October 29; module-driver pseudocode is defined below to separate that deliverable from a later executable test suite. The cases here anticipate the November 12/19 test-plan assignments.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 8\tabcolsep - 5\arrayrulewidth) * \real{0.2203}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 8\tabcolsep - 5\arrayrulewidth) * \real{0.2299}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 8\tabcolsep - 5\arrayrulewidth) * \real{0.2428}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 8\tabcolsep - 5\arrayrulewidth) * \real{0.2605}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{ID}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Module}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Stimulus}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Expected outcome}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+T01 & M03 & Receive +10 to new lot & Lot=10; receipt and audit once \\ \hline
+T02 & M03 & Repeat receipt with same request key & No second increase \\ \hline
+T03 & M04 & Sell 1 when only expired lot exists & EXPIRED\_LOT; stock unchanged \\ \hline
+T04 & M04 & Two simultaneous sales of last unit & One success, one conflict \\ \hline
+T05 & M04 & Replay same POS external ID & Exactly-once effect \\ \hline
+T06 & M05 & Technician approves own adjustment & FORBIDDEN \\ \hline
+T07 & M05 & Manager approves pending +2 & Single ledger update \\ \hline
+T08 & M06 & Lot expires on store-local date & Classified and blocked per expiry policy \\ \hline
+T09 & M07 & Send unapproved draft order & CONFLICT / denied \\ \hline
+T10 & M08 & Forecast advises purchase & No order or stock mutation \\ \hline
+T11 & M09 & No sales history & Explicit fallback/insufficient-data outcome \\ \hline
+T12 & M10 & Search Schedule II medication & Contact pharmacy; no availability \\ \hline
+T13 & M10 & Public search standard product & No exact quantity field \\ \hline
+T14 & M11 & Decline GPS, enter ZIP & Location results without saving GPS \\ \hline
+T15 & M12 & Run daily alerts twice & No duplicated alert \\ \hline
+T16 & M13 & Mutation and audit DB failure & Full rollback \\ \hline
+T17 & M14 & Bad POS signature & Request rejected and logged \\ \hline
+T18 & M01 & Unauthorized store access & FORBIDDEN \\ \hline
+T19 & M07 & Partial delivery & Order remains partially received \\ \hline
+T20 & M15 & Customer unsubscribes & No further notifications \\ \hline
+\end{longtable}
+}
+
+\subsection{10.1 Driver compilation checklist}\label{driver-compilation-checklist}
+
+\begin{quote}
+· Provide a driver for each kernel module (minimum M01, M02, M03, M04, M05, M06, M07, M10, M13, M14), with imports mocked or linked according to the agreed build.
+
+· Every driver must invoke published exports with representative well-typed parameters and emit a structured result.
+
+· Build must compile without executing tests; the Oct 29 milestone explicitly says ``compiled but not tested''.
+
+· Record exact compile command, toolchain version, Git commit and owner in the team's build log.
+
+· Do not mark modules as compiled from this specification alone.
+\end{quote}
+
+\clearpage
+\section{11. Integration, Responsibilities and Remaining Tasks}\label{integration-responsibilities-and-remaining-tasks}
+
+\subsection{11.1 Dependency-based implementation sequence}\label{dependency-based-implementation-sequence}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3051}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3260}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3212}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Stage}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Integration deliverable}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Dependencies}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+A & Auth, products, stores, relational schema, audit & None \\ \hline
+B & Lot receiving + stock ledger + manager adjustment & A \\ \hline
+C & Expiry blocking + safe customer search & B \\ \hline
+D & POS adapter + dashboard + basic reorder draft & C \\ \hline
+E & Forecast baseline and human recommendation review & D \\ \hline
+F & Supplier dispatch, mapping, notifications, reports, chatbot & Only if stages A--E stable \\ \hline
+\end{longtable}
+}
+
+\subsection{11.2 Responsibility and peer-review matrix}\label{responsibility-and-peer-review-matrix}
+
+The SRS names four contributors but does not assign individual modules. The course requires individual responsibilities and review of another contributor's section. The assignments below are deliberately unfilled so actual work is not misattributed.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 8\tabcolsep - 5\arrayrulewidth) * \real{0.2395}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 8\tabcolsep - 5\arrayrulewidth) * \real{0.2395}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 8\tabcolsep - 5\arrayrulewidth) * \real{0.2395}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 8\tabcolsep - 5\arrayrulewidth) * \real{0.2347}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Workstream}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Lead/section author}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Reviewer}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Status}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Platform, identity, schema & Unassigned & Unassigned & Design proposed \\ \hline
+Inventory, POS and expiration & Unassigned & Unassigned & Design proposed \\ \hline
+Ordering, forecasts, dashboard & Unassigned & Unassigned & Design proposed \\ \hline
+Customer portal, geography, reporting & Unassigned & Unassigned & Design proposed \\ \hline
+Document integration and editorial review & Unassigned & Unassigned & Not confirmed \\ \hline
+\end{longtable}
+}
+
+\subsection{11.3 Remaining dated milestones}\label{remaining-dated-milestones}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3019}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3292}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3212}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Date}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Course requirement}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Design dependency}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Oct 29, 2026 & Detailed design spec (two copies); module drivers compiled/not tested; reallocate tasks & Finalize design, assign owners, actually compile drivers \\ \hline
+Nov 12, 2026 & Initial draft test plan & Build from section 10 and the integration sequence \\ \hline
+Nov 19, 2026 & Top-level main-module code and final test plan & Integrate kernel and specify realistic test responsibility \\ \hline
+Dec 3, 2026 & User manual draft & Use workflows and error cases \\ \hline
+Dec 10, 2026 & Demo/presentation + final project & Demonstrate working core features with documentation \\ \hline
+\end{longtable}
+}
+
+\clearpage
+\section{12. Traceability and Acceptance}\label{traceability-and-acceptance}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3148}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3228}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 6\tabcolsep - 4\arrayrulewidth) * \real{0.3148}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{SRS requirement}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Owning module(s)}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Acceptance evidence}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+F1 & M01 & Module-level result + integration use-case/test plan \\ \hline
+F2 & M01/M15 & Module-level result + integration use-case/test plan \\ \hline
+F3 & M04/M13 & Module-level result + integration use-case/test plan \\ \hline
+F4 & M02 & Module-level result + integration use-case/test plan \\ \hline
+F5 & M03 & Module-level result + integration use-case/test plan \\ \hline
+F6 & M04/M05/M14 & Module-level result + integration use-case/test plan \\ \hline
+F7 & M04 & Module-level result + integration use-case/test plan \\ \hline
+F8 & M05 & Module-level result + integration use-case/test plan \\ \hline
+F9 & M06/M12 & Module-level result + integration use-case/test plan \\ \hline
+F10 & M04/M06 & Module-level result + integration use-case/test plan \\ \hline
+F11 & M06 & Module-level result + integration use-case/test plan \\ \hline
+F12 & M07 & Module-level result + integration use-case/test plan \\ \hline
+F13 & M07/M08 & Module-level result + integration use-case/test plan \\ \hline
+F14 & M07 & Module-level result + integration use-case/test plan \\ \hline
+F15 & M08/M16 & Module-level result + integration use-case/test plan \\ \hline
+F16 & M09 & Module-level result + integration use-case/test plan \\ \hline
+F17 & M08/M09 & Module-level result + integration use-case/test plan \\ \hline
+F18 & M08/M16 & Module-level result + integration use-case/test plan \\ \hline
+F19 & M10 & Module-level result + integration use-case/test plan \\ \hline
+F20 & M10 & Module-level result + integration use-case/test plan \\ \hline
+F21 & M11 & Module-level result + integration use-case/test plan \\ \hline
+F22 & M02/M10 & Module-level result + integration use-case/test plan \\ \hline
+F23 & M15 & Module-level result + integration use-case/test plan \\ \hline
+F24 & M12 & Module-level result + integration use-case/test plan \\ \hline
+F25 & M13 & Module-level result + integration use-case/test plan \\ \hline
+\end{longtable}
+}
+
+Acceptance is not inferred from a complete design document. Evidence requires actual builds, test executions, and demonstrations. The high-level requirements F1--F25 are carried forward from the October 1 SRS; optional priorities remain subject to the agreed scope.
+
+\clearpage
+\section{13. Open Decisions and Change Control}\label{open-decisions-and-change-control}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4749}}|
+  >{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep - 3\arrayrulewidth) * \real{0.4765}}|}
+\hline
+\begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Decision / unresolved question}
+\end{minipage} & \begin{minipage}[c]{\linewidth}\raggedright
+\textbf{Recommended disposition}
+\end{minipage} \\
+\hline
+\endhead
+
+\endlastfoot
+Technology stack and host & Team selects; interfaces remain independent of framework \\ \hline
+Final ownership and peer reviewers & Fill section 11 after allocation meeting; record document editors \\ \hline
+Product availability threshold & Confirm Low Stock definition per store; default below configured threshold \\ \hline
+Expiry date interpretation & Confirm whether expires\_on is unsellable at the beginning or end of that date \\ \hline
+Stock integration outages & For demo, durable queue + reconciliation; production offline guarantees not yet validated \\ \hline
+NDC and drug data source & Choose synthetic catalog for prototype; verify authoritative integration later \\ \hline
+Supplier order transmission & Use simulated adapter unless supplier test environment available \\ \hline
+Forecast model & Start with transparent baseline; replace only with measured quality gains \\ \hline
+Chatbot scope & Read-only explanations; do not imply medical assistance \\ \hline
+Privacy and regulation & Formal legal assessment and real-world compliance work \\ \hline
+Module drivers compilation & Must be performed by the team; not evidenced by this file \\ \hline
+\end{longtable}
+}
+
+Proposed design changes should record change ID, rationale, affected requirement/module, interface/schema impact, approver, and version. Scope changes should update SRS and detailed design together.
+
+\clearpage
+\section{Appendix A. API Payload Examples}\label{appendix-a.-api-payload-examples}
+
+\begin{quote}
+POST /api/v1/stores/\{storeId\}/receipts
+
+Idempotency-Key: receipt-7fc9
+
+\{ "productId":"p-101", "lotNumber":"L-2409",
+
+"expiresOn": "2027-04-30", "quantity":20, "supplierId": "s-2" \}
+
+200 \{ "data": \{"receiptId":"r-1", "acceptedQuantity":20\},
+
+"requestId": "req-21" \}
+
+GET /api/v1/public/search?q=example
+
+200 \{ "data": {[}\{"productId": "p-101", "name": "Example Drug",
+
+"availability": "Low Stock", "cashPrice": "12.99",
+
+"pricingNote": "Insurance pricing may differ"\}{]}, "requestId": "req-22" \}
+
+Schedule II response: "availability": "Contact pharmacy for availability"
+
+POST /api/v1/adjustments/\{id\}/approve
+
+\{ "decision": "APPROVE", "expectedVersion":3 \}
+
+409 \{ "error":\{"code": "CONFLICT",
+
+"message": "Adjustment was already reviewed"\}, "requestId": "req-23" \}
+\end{quote}
+
+\clearpage
+\section{Appendix B. Pseudocode and Driver Skeletons}\label{appendix-b.-pseudocode-and-driver-skeletons}
+
+\textbf{B.1 Atomic sale allocation}
+
+\begin{quote}
+applySale(store, product, qty, externalEventId):
+
+require qty \textgreater{} 0
+
+begin transaction
+
+if seen(externalEventId): return previous\_result
+
+lots = lock\_eligible\_lots(store, product, expires\_after=today(store))
+
+sort lots by expiration ascending, then lot id
+
+if sum(lot.qty for lot in lots) \textless{} qty: rollback; fail INSUFFICIENT\_STOCK
+
+remaining = qty
+
+for lot in lots while remaining \textgreater{} 0:
+
+take = min(lot.qty, remaining)
+
+decrement(lot, take); append\_movement(lot, -take, externalEventId)
+
+remaining -= take
+
+persist\_sales\_event(externalEventId)
+
+append\_audit(actor=POS\_SERVICE, action=SALE, refs=movements)
+
+commit; return receipt
+\end{quote}
+
+\textbf{B.2 Expiration alerts}
+
+\begin{quote}
+runDailyExpiry(store, today):
+
+for lot in lots\_with\_on\_hand(store):
+
+days\_left = local\_date(lot.expiresOn) - today
+
+if days\_left \textless{} 0: label = EXPIRED
+
+else if days\_left \textless= 30: label = WITHIN\_30
+
+else if days\_left \textless= 60: label = WITHIN\_60
+
+else if days\_left \textless= 90: label = WITHIN\_90
+
+else: continue
+
+upsert\_alert(store, lot, today, label) \# unique daily alert key
+\end{quote}
+
+\textbf{B.3 Suggestion and approval}
+
+\begin{quote}
+proposeReorder(storeProduct):
+
+snapshot = read\_inventory\_snapshot(storeProduct)
+
+prediction = forecast\_or\_fallback(storeProduct, horizon=30)
+
+qty = max(0, calculated\_target(prediction) - snapshot.sellable\_qty)
+
+save Recommendation(PROPOSED, qty, rationale, snapshot.version)
+
+return recommendation
+
+reviewSuggestion(id, decision, editedQty):
+
+require current\_user.has\_role(PHARMACIST\_MANAGER)
+
+validate decision and editedQty
+
+save reviewer decision + audit
+
+if decision in (ACCEPT, EDIT): create purchase\_order(DRAFT)
+
+\# no purchase dispatch or stock mutation here
+\end{quote}
+
+\textbf{B.4 Proposed compiled driver interface}
+
+\begin{quote}
+// Language-neutral; translate to the team-selected language/toolchain.
+
+function main():
+
+repo = FakeRepository(preloadedFixture)
+
+ledger = StockLedger(repo, FakeAuditWriter())
+
+request = SaleRequest(store="demo", product="demo-med", qty=1, event="demo-1")
+
+result = ledger.applySale(request)
+
+print(serialize(result))
+
+return 0
+
+// The presence of pseudocode DOES NOT establish compilation.
+\end{quote}
+
+Document sources: Montclair State University, CSIT 515 Software Engineering \& Reliability, Fall 2026, ``Project Due Dates'' (especially pp. 4--5); Seal-SIMD, ``AI-Driven Pharmaceutical Real-Time Inventory and Customer Information System,'' SRS v0.2, October 1, 2026. Proposed implementation decisions are identified throughout.
+
+\end{document}

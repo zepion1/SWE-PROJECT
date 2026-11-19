@@ -1,0 +1,18 @@
+/.doc-review/
+/docs/*.docx
+/docs/(0.5) Due Dates Fall 2026.pdf
+/docs/Consistency Review - Approval Required.md
+/docs/latex/README.md
+/docs/latex/build.ps1
+/docs/latex/conversion-manifest.json
+
+# Generated LaTeX files
+/docs/latex/*.pdf
+/docs/latex/*.aux
+/docs/latex/*.log
+/docs/latex/*.out
+/docs/latex/*.toc
+/docs/latex/*.synctex.gz
+/docs/latex/*.fls
+/docs/latex/*.fdb_latexmk
+/docs/latex/*.xdv
