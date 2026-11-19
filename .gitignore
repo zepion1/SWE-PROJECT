@@ -1,3 +1,4 @@
+# Local document sources and review files
 /.doc-review/
 /docs/*.docx
 /docs/(0.5) Due Dates Fall 2026.pdf
@@ -16,3 +17,31 @@
 /docs/latex/*.fls
 /docs/latex/*.fdb_latexmk
 /docs/latex/*.xdv
+
+# Project document PDFs
+Design Specification Document.pdf
+Software Requirements Specification Document.pdf
+Test Plan Document.pdf
+
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local SQLite databases
+server/data/
+*.db
+*.db-wal
+*.db-shm
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
