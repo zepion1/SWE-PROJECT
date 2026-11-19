@@ -1,6 +1,8 @@
-# AI-Driven Pharmaceutical Real-Time Inventory and Customer Information System
+# RedHawk Pharmacy
 
-A centralized platform that connects participating pharmacies. Staff use it to manage lot-level inventory, expiration dates, suppliers and purchase orders. It also gives advisory, machine-learning demand forecasts, and offers a public portal where customers can check medication availability, cash prices and the nearest pharmacy.
+**AI-Driven Pharmaceutical Real-Time Inventory and Customer Information System**
+
+RedHawk Pharmacy is a centralized platform that connects participating pharmacies. Staff use it to manage lot-level inventory, expiration dates, suppliers and purchase orders. It also gives advisory, machine-learning demand forecasts, and offers a public portal where customers can check medication availability, cash prices and the nearest pharmacy.
 
 > **Course:** CSIT 515 Software Engineering & Reliability, Fall 2026, Montclair State University
 > **Team Seal-SIMD:** Maria Molano Escobar, Marko Maksuti, Ryan Petillo, Samuel Cordova
@@ -13,7 +15,7 @@ This is a classroom prototype. It uses **synthetic data only**. It implements te
 ## Table of contents
 
 1. [Project documents](#project-documents)
-2. [Scope](#scope)
+2. [Scope](#scope) · [Brand](#brand)
 3. [Users and roles](#users-and-roles)
 4. [Functional requirements and module map](#functional-requirements-and-module-map)
 5. [Non-functional targets](#non-functional-targets)
@@ -130,6 +132,15 @@ Priorities use MoSCoW (SRS Table 3.1). The *Iteration* column refers to the [roa
 
 Some targets, such as N2 at full scale and N3 uptime, can't be fully reproduced on course hardware. The Test Plan (§6) says how each one is measured and reported.
 
+## Brand
+
+| Token | Value | Use |
+|---|---|---|
+| RedHawk White | `#FFFFFF` | Page backgrounds, text on red |
+| RedHawk Red | `#D1190D` | Header, primary buttons, links, focus rings |
+
+Red on white has a contrast ratio of about 5.4:1, which meets WCAG 2.1 AA for normal text (N6). The tokens live in `client/src/styles.css`.
+
 ## Tech stack
 
 The stack is chosen for simplicity. It closes Test Plan open question **Q1**.
@@ -201,6 +212,9 @@ The Vite dev server forwards `/api` requests to the backend.
 | `npm run build` | Typecheck + production build of the client |
 | `npm run db:migrate` / `npm run db:seed` | Apply schema migrations / load synthetic data |
 | `npm run drivers` | Run the module drivers (DDS §10) |
+| `npm run worker` | Run the daily background jobs once (expiry alerts, forecasts, notices) |
+
+Seeded demo users (`admin@redhawk.test`, `manager@redhawk.test`, `tech@redhawk.test`) share the dev-only password `ChangeMe!123`. The stub MFA code is `123456`. All seed data is synthetic.
 
 ### Environment variables (server)
 
