@@ -1,0 +1,29 @@
+{
+  "name": "redhawk-pharmacy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "RedHawk Pharmacy: AI-Driven Pharmaceutical Real-Time Inventory and Customer Information System (CSIT 515, Team Seal-SIMD)",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,magenta \"npm run dev -w server\" \"npm run dev -w client\"",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
+    "build": "npm run typecheck && npm run build -w client",
+    "db:migrate": "npm run db:migrate -w server",
+    "db:seed": "npm run db:seed -w server",
+    "drivers": "npm run drivers -w server",
+    "worker": "npm run worker -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.7",
+    "typescript": "^7.0.2"
+  }
+}

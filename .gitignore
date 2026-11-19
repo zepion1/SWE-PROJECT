@@ -1,0 +1,27 @@
+# Project documents (kept outside version control)
+Design Specification Document.pdf
+Software Requirements Specification Document.pdf
+Test Plan Document.pdf
+
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local SQLite databases (synthetic data only, never commit)
+server/data/
+*.db
+*.db-wal
+*.db-shm
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
