@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Typecheck (module drivers must compile, DDS §10.1)
+        run: npm run typecheck
+      - name: Unit and integration tests with coverage (N9)
+        run: npm run test:coverage
+      - name: Build client
+        run: npm run build -w client
+      - name: Run module drivers
+        run: npm run drivers
