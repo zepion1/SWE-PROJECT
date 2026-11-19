@@ -1,0 +1,24 @@
+name: Build project PDFs
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XeLaTeX
+        run: sudo apt-get update && sudo apt-get install -y texlive-xetex texlive-fonts-recommended fonts-texgyre
+      - name: Build documents
+        working-directory: docs/latex
+        run: |
+          for doc in requirements design test-plan; do
+            for pass in 1 2; do
+              xelatex -interaction=nonstopmode -halt-on-error "$doc.tex"
+            done
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: project-pdfs
+          path: docs/latex/*.pdf
+          if-no-files-found: error

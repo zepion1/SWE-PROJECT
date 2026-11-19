@@ -1,4 +1,24 @@
-# Project documents (kept outside version control)
+# Local document sources and review files
+/.doc-review/
+/docs/*.docx
+/docs/(0.5) Due Dates Fall 2026.pdf
+/docs/Consistency Review - Approval Required.md
+/docs/latex/README.md
+/docs/latex/build.ps1
+/docs/latex/conversion-manifest.json
+
+# Generated LaTeX files
+/docs/latex/*.pdf
+/docs/latex/*.aux
+/docs/latex/*.log
+/docs/latex/*.out
+/docs/latex/*.toc
+/docs/latex/*.synctex.gz
+/docs/latex/*.fls
+/docs/latex/*.fdb_latexmk
+/docs/latex/*.xdv
+
+# Project document PDFs
 Design Specification Document.pdf
 Software Requirements Specification Document.pdf
 Test Plan Document.pdf
@@ -9,7 +29,7 @@ dist/
 coverage/
 *.tsbuildinfo
 
-# Local SQLite databases (synthetic data only, never commit)
+# Local SQLite databases
 server/data/
 *.db
 *.db-wal
@@ -20,7 +40,7 @@ server/data/
 .env.*
 !.env.example
 
-# OS / editor
+# OS and editor files
 .DS_Store
 .idea/
 .vscode/*
