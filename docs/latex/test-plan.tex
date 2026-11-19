@@ -146,7 +146,7 @@ Authorization & Unauthorized role/store combinations are denied server-side; app
 Expiration safety & Expired lots are excluded from sellable stock and blocked from sale at execution time. \\ \hline
 Public privacy & Customer search never reveals exact inventory quantity; Schedule II availability is replaced by the required contact-pharmacy message. \\ \hline
 Performance & Customer search target: \textless=2 seconds under the defined test load; inventory changes visible system-wide within \textless=5 seconds. \\ \hline
-Reliability & Queued/retried external events preserve idempotency; recoverable dependency failures do not corrupt inventory. \\ \hline
+Reliability & Offline store transactions are queued durably and synchronized on reconnect with no duplicate inventory effects; recoverable dependency failures do not corrupt inventory. \\ \hline
 Automated coverage & Target \textgreater=70\% automated test coverage for implemented code, measured by the selected test framework. \\ \hline
 Acceptance & All acceptance-demo scenarios complete with expected outputs or documented, instructor-approved limitations. \\ \hline
 \end{longtable}
@@ -555,7 +555,7 @@ Success Criterion & No private lot quantity or restricted availability is expose
 \endlastfoot
 Requirements & F21 \\ \hline
 Technique & Functional + I/O \\ \hline
-Objective & Verify ZIP/device-location input, distance ordering, consent handling, and unavailable map dependency. \\ \hline
+Objective & Verify ZIP/device-location input, distance ordering, consent handling, and the required nearby-pharmacy list without an embedded map. Embedded map integration may be deferred. \\ \hline
 Procedure / Expected Result & Stores are sorted nearest-first; location use requires consent; entered/device location is not persisted; dependency failure is explicit. \\ \hline
 Success Criterion & Correct ordering for controlled coordinates and no stored customer location. \\ \hline
 \end{longtable}
@@ -1078,7 +1078,7 @@ A1 - Receive and sell & Authorized staff receives a lot; staff view updates; POS
 A2 - Expiration safety & Seed expired and soon-to-expire lots; open dashboard; attempt sale of expired stock. & Correct alerts/classification; expired sale is blocked. \\ \hline
 A3 - Reorder approval & Drive item to reorder threshold; view recommendation/draft; technician attempt denied; pharmacist/manager approves. & Human approval boundary enforced and state transitions are auditable. \\ \hline
 A4 - Customer lookup & Customer searches medication, views price/coarse availability, nearest pharmacy, Schedule II protected response. & No exact count is exposed; distance ordering and controlled-substance rule are correct. \\ \hline
-A5 - Failure/replay & Replay POS event and simulate one dependency outage. & No duplicate inventory effect; system returns controlled failure and remains consistent. \\ \hline
+A5 - Failure/replay & Disconnect a store, queue transactions, restart the store application to verify queue persistence, reconnect, and replay a queued event. & Queued transactions survive restart and synchronize on reconnect exactly once; no duplicate inventory effect or corruption of committed inventory occurs. \\ \hline
 \end{longtable}
 }
 

@@ -80,11 +80,11 @@ This design turns the approved SRS behavior into component boundaries, persisten
 \endhead
 
 \endlastfoot
-Kernel K0 & Products, stores, lots, atomic stock movements, authentication/roles, audit, expiration and sale blocking, staff read screens, customer safe search & First: integrated skeleton \\ \hline
+Kernel K0 & Products, stores, lots, atomic stock movements, authentication/roles, audit, expiration and sale blocking, staff read screens, customer safe search, durable offline transaction queue and reconnection synchronization & First: integrated skeleton \\ \hline
 Operational K1 & Supplier and reorder thresholds, draft orders and manager approval, dashboard, POS adapter & Next \\ \hline
 Analytics K2 & Sales history, forecast interface, 7/30/90 day baseline model, suggestions requiring approval & Next; degrade to rules when model unavailable \\ \hline
 Extensions E1 & Cycle counts, supplier transmission, disposal/FEFO, export reports, back-in-stock and generic alternatives & Only after kernel works \\ \hline
-Extensions E2 & Advanced chatbot, anomaly detection, production-grade offline synchronization, true map/directions integrations & Scoped prototype or deferred \\ \hline
+Extensions E2 & Advanced chatbot, anomaly detection, embedded map integration; the nearby-pharmacy list and offline transaction synchronization remain required & Scoped prototype or deferred \\ \hline
 \end{longtable}
 }
 
@@ -825,14 +825,14 @@ Driver status on October 29: this is the required interface outline only; this d
 
 \endlastfoot
 Abstract & Rank participating pharmacies with stock by distance from consented location or ZIP. \\ \hline
-Subparts & LocationResolver, DistanceSorter, MapAdapter \\ \hline
+Subparts & LocationResolver, DistanceSorter, optional MapAdapter \\ \hline
 Imports & PublicAvailability, Store catalog \\ \hline
 Exports/signatures & nearby(productId,locationOrZip)-\textgreater PharmacyList \\ \hline
 Inputs & coarse ZIP or temporary latitude/longitude \\ \hline
-Outputs & sorted list, distance, and directions link \\ \hline
+Outputs & required distance-sorted pharmacy list; directions link; optional embedded map \\ \hline
 Preconditions & Consent before precise location; no persistence of coordinates. \\ \hline
 Postconditions and invariants & Returned eligible stores sorted by ascending distance. \\ \hline
-Error handling & ZIP unresolved; maps service outage returns list if possible. \\ \hline
+Error handling & ZIP unresolved returns an explicit location-resolution error; the pharmacy list does not depend on an embedded map. Embedded map integration may be deferred. \\ \hline
 Side effects & None; access logs must omit precise coordinates. \\ \hline
 Representative test cases & Equal distances; unavailable GPS; invalid ZIP. \\ \hline
 \end{longtable}
@@ -1125,7 +1125,7 @@ Customer searches brand, generic, or NDC → M10 normalizes query → excludes i
 
 \textbf{UC-07 Nearest pharmacy}
 
-Customer grants GPS consent or types ZIP \ensuremath{\rightarrow} M11 obtains temporary origin \ensuremath{\rightarrow} filters participating pharmacies with safe in-stock public status \ensuremath{\rightarrow} sorts using calculated distance \ensuremath{\rightarrow} returns map/directions if provider available; origin is not stored.
+Customer grants GPS consent or types ZIP; M11 obtains a temporary origin, filters participating pharmacies with safe in-stock public status, sorts by distance, and returns the required pharmacy list and a directions link. An embedded map may be deferred; origin is not stored.
 
 \textbf{UC-08 Forecast review}
 
@@ -1266,7 +1266,7 @@ Controlled substance disclosure & Public response projection masks Schedule II b
 Customer geolocation retention & Use in memory only; redact location from logs and analytics \\ \hline
 Forecast hallucination/drift & Label model version, missing data, accuracy; no autonomous writes \\ \hline
 Audit omission & Atomic audit write in same commit; fail closed if unavailable \\ \hline
-Network outage & Retry with event IDs; display staleness and reconcile queue \\ \hline
+Network outage & Persist store transactions in a durable local queue during an internet outage; display pending/stale state; synchronize on reconnect using stable event IDs without duplicate stock effects; reconcile conflicts without corrupting committed inventory. \\ \hline
 Lost database & Daily backup and documented restoration exercise \\ \hline
 \end{longtable}
 }
@@ -1498,7 +1498,7 @@ Technology stack and host & Team selects; interfaces remain independent of frame
 Final ownership and peer reviewers & Fill section 11 after allocation meeting; record document editors \\ \hline
 Product availability threshold & Confirm Low Stock definition per store; default below configured threshold \\ \hline
 Expiry date interpretation & Confirm whether expires\_on is unsellable at the beginning or end of that date \\ \hline
-Stock integration outages & For demo, durable queue + reconciliation; production offline guarantees not yet validated \\ \hline
+Stock integration outages & Required for the working demonstration: disconnect a store, queue transactions durably, reconnect, and verify synchronization has exactly-once inventory effects and preserves stock integrity. Production-scale hardening remains future work. \\ \hline
 NDC and drug data source & Choose synthetic catalog for prototype; verify authoritative integration later \\ \hline
 Supplier order transmission & Use simulated adapter unless supplier test environment available \\ \hline
 Forecast model & Start with transparent baseline; replace only with measured quality gains \\ \hline
