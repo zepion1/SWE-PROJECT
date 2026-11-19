@@ -11,6 +11,13 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.tsx", "src/**/*.test.ts"],
-    coverage: { provider: "v8", include: ["src/**/*.{ts,tsx}"], reporter: ["text-summary", "html"] },
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/main.tsx", "src/**/*.test.{ts,tsx}"],
+      reporter: ["text-summary", "html"],
+      // N9: at least 70% automated test coverage. CI fails below this.
+      thresholds: { lines: 70, statements: 70 },
+    },
   },
 });

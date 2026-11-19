@@ -20,7 +20,8 @@
     "db:migrate": "npm run db:migrate -w server",
     "db:seed": "npm run db:seed -w server",
     "drivers": "npm run drivers -w server",
-    "worker": "npm run worker -w server"
+    "worker": "npm run worker -w server",
+    "mfa:code": "npm run mfa:code -w server --"
   },
   "devDependencies": {
     "concurrently": "^10.0.7",

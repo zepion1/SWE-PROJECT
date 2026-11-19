@@ -14,10 +14,30 @@ export class ApiClientError extends Error {
 }
 
 let sessionToken: string | null = null;
+let onSessionRejected: (() => void) | null = null;
 
-/** Set after a successful staff login (Iteration 1). Kept in memory, not localStorage. */
+/** Bearer token for staff requests; managed by AuthProvider. */
 export function setSessionToken(token: string | null): void {
   sessionToken = token;
+}
+
+/** Called when the server rejects our session (expired, revoked, user locked). */
+export function setSessionRejectedHandler(handler: (() => void) | null): void {
+  onSessionRejected = handler;
+}
+
+/** Human-readable message, including the first field-level validation issue when present. */
+export function describeError(err: unknown): string {
+  if (err instanceof ApiClientError) {
+    const issues = Array.isArray(err.details) ? (err.details as { path?: unknown[]; message?: string }[]) : [];
+    const first = issues[0];
+    if (err.code === "VALIDATION_ERROR" && first?.message) {
+      const field = Array.isArray(first.path) && first.path.length ? `${first.path.join(".")}: ` : "";
+      return `${field}${first.message}`;
+    }
+    return err.message;
+  }
+  return err instanceof Error ? err.message : "Something went wrong";
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -40,6 +60,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (!json) throw new ApiClientError("INTERNAL_ERROR", `Unexpected response (${res.status})`, null);
   if ("error" in json) {
     const { error, requestId } = json as ApiFailure;
+    if (error.code === "UNAUTHENTICATED" && headers.Authorization) onSessionRejected?.();
     throw new ApiClientError(error.code, error.message, requestId, error.details);
   }
   return json.data;
