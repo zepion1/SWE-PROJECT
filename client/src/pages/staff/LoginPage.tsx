@@ -1,29 +1,36 @@
 import { useState, type FormEvent } from "react";
-import { api, ApiClientError } from "../../api/client";
+import { Navigate, useLocation, useNavigate } from "react-router";
+import { describeError } from "../../api/client";
+import { useAuth } from "../../auth/AuthContext";
 import { Brand } from "../../components/Brand";
 
-/** Staff sign-in with password + one-time code (M01: F1). Wired to POST /api/v1/auth/login. */
+/** Staff sign-in with password + one-time code (M01: F1). */
 export function LoginPage() {
+  const { state, login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: string } | null)?.from ?? "/staff";
   const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  if (state.status === "signedIn") return <Navigate to={from} replace />;
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
+    setBusy(true);
+    setMessage(null);
     try {
-      await api.post("/auth/login", {
-        email: form.get("email"),
-        password: form.get("password"),
-        otp: form.get("otp"),
+      await login({
+        email: String(form.get("email") ?? ""),
+        password: String(form.get("password") ?? ""),
+        otp: String(form.get("otp") ?? ""),
       });
-      // TODO (Iteration 1): setSessionToken(session.token) and navigate to /staff.
+      navigate(from, { replace: true });
     } catch (err) {
-      setMessage(
-        err instanceof ApiClientError && err.code === "NOT_IMPLEMENTED"
-          ? "Staff sign-in is coming in Iteration 1."
-          : err instanceof Error
-            ? err.message
-            : "Sign-in failed",
-      );
+      setMessage(describeError(err));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -36,7 +43,7 @@ export function LoginPage() {
       </header>
       <main id="main" className="rh-main" style={{ maxWidth: 420 }}>
         <h1>Staff sign-in</h1>
-        <form onSubmit={onSubmit} className="rh-card">
+        <form onSubmit={onSubmit} className="rh-card" aria-describedby={message ? "login-error" : undefined}>
           <div className="rh-field">
             <label htmlFor="email">Email</label>
             <input id="email" name="email" type="email" autoComplete="username" required />
@@ -47,13 +54,26 @@ export function LoginPage() {
           </div>
           <div className="rh-field">
             <label htmlFor="otp">One-time code</label>
-            <input id="otp" name="otp" inputMode="numeric" pattern="\d{6}" autoComplete="one-time-code" required />
+            <input
+              id="otp"
+              name="otp"
+              inputMode="numeric"
+              pattern="\d{6}"
+              maxLength={6}
+              autoComplete="one-time-code"
+              aria-describedby="otp-help"
+              required
+            />
+            <small id="otp-help" className="rh-muted">
+              The 6-digit code from your authenticator app.
+              {import.meta.env.DEV ? " Development mode: use 123456." : ""}
+            </small>
           </div>
-          <button className="rh-button" type="submit">
-            Sign in
+          <button className="rh-button" type="submit" disabled={busy}>
+            {busy ? "Signing in…" : "Sign in"}
           </button>
           {message ? (
-            <div className="rh-alert" role="alert">
+            <div id="login-error" className="rh-alert" role="alert">
               {message}
             </div>
           ) : null}

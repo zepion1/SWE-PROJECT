@@ -14,6 +14,18 @@ import type { Db } from "./connection";
  */
 export const SEED_PASSWORD = "ChangeMe!123";
 
+/**
+ * Seeded staff with FIXED, PUBLIC TOTP secrets (base32), for local demos only.
+ * With MFA_MODE=totp, add a secret to an authenticator app or run
+ * `npm run mfa:code -- <email>` to print the current code.
+ */
+export const SEED_USERS = [
+  { id: "user-admin", email: "admin@redhawk.test", displayName: "Avery Admin", mfaSecret: "REDHAWKADMIN2345REDHAWKADMIN2345" },
+  { id: "user-manager", email: "manager@redhawk.test", displayName: "Morgan Manager", mfaSecret: "REDHAWKMANAGER23REDHAWKMANAGER23" },
+  { id: "user-tech", email: "tech@redhawk.test", displayName: "Taylor Technician", mfaSecret: "REDHAWKTECH23456REDHAWKTECH23456" },
+  { id: "user-tech-clifton", email: "tech.clifton@redhawk.test", displayName: "Casey Technician", mfaSecret: "REDHAWKCLIFTON23REDHAWKCLIFTON23" },
+] as const;
+
 export function seedDemoData(db: Db, clock: Clock = systemClock): void {
   const tz = "America/New_York";
   const today = localDate(clock.now(), tz);
@@ -28,16 +40,14 @@ export function seedDemoData(db: Db, clock: Clock = systemClock): void {
     store.run("store-newark", "RedHawk Pharmacy Newark", "200 Broad St, Newark, NJ", "07102", 40.7357, -74.1724, tz);
 
     const user = db.prepare(
-      `INSERT OR IGNORE INTO users (id, email, display_name, password_hash, mfa_enabled) VALUES (?, ?, ?, ?, 1)`,
+      `INSERT OR IGNORE INTO users (id, email, display_name, password_hash, mfa_secret, mfa_enabled)
+       VALUES (?, ?, ?, ?, ?, 1)`,
     );
     const role = db.prepare(
       `INSERT OR IGNORE INTO role_assignments (id, user_id, store_id, role) VALUES (?, ?, ?, ?)`,
     );
     const pw = hashPassword(SEED_PASSWORD);
-    user.run("user-admin", "admin@redhawk.test", "Avery Admin", pw);
-    user.run("user-manager", "manager@redhawk.test", "Morgan Manager", pw);
-    user.run("user-tech", "tech@redhawk.test", "Taylor Technician", pw);
-    user.run("user-tech-clifton", "tech.clifton@redhawk.test", "Casey Technician", pw);
+    for (const u of SEED_USERS) user.run(u.id, u.email, u.displayName, pw, u.mfaSecret);
     role.run("ra-admin", "user-admin", null, "SYSTEM_ADMIN");
     role.run("ra-manager", "user-manager", "store-montclair", "PHARMACIST_MANAGER");
     role.run("ra-tech", "user-tech", "store-montclair", "TECHNICIAN");

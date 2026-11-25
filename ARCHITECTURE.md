@@ -1,4 +1,4 @@
-# Architecture
+# RedHawk Pharmacy: Architecture
 
 This document turns the Detailed Design Specification (DDS v0.1) into diagrams, applied to the chosen stack: **TypeScript · React · Express · SQLite**. Every diagram is Mermaid, which GitHub renders inline.
 
@@ -30,7 +30,7 @@ flowchart LR
     admin["System Administrator"]
     cust["Customer<br/>(guest or registered)"]
 
-    sys(["Pharmaceutical Inventory and<br/>Customer Information System"])
+    sys(["RedHawk Pharmacy<br/>Inventory and Customer Information System"])
 
     pos["POS system<br/>(simulator)"]
     sup["Supplier ordering<br/>(stub adapter)"]
@@ -57,8 +57,8 @@ The semester prototype runs one backend process, one SQLite file and one worker 
 ```mermaid
 flowchart TB
     subgraph browser["Browser"]
-        staffUI["Staff app<br/>React routes /staff/*"]
-        publicUI["Customer portal<br/>React routes /"]
+        staffUI["RedHawk staff app<br/>React routes /staff/*"]
+        publicUI["RedHawk customer portal<br/>React routes /"]
     end
 
     subgraph server["Node.js process: server/"]
@@ -674,18 +674,22 @@ stateDiagram-v2
 
 ## API surface
 
-All paths are prefixed with `/api/v1` (DDS §8). Responses use the `{ data, requestId }` / `{ error, requestId }` envelope.
+All paths are prefixed with `/api/v1` (DDS §8). Responses use the `{ data, requestId }` / `{ error, requestId }` envelope. ✅ marks endpoints that are implemented; the rest return `501 NOT_IMPLEMENTED` until their iteration.
 
 | Method | Path | Owner | Auth | Notes |
 |---|---|---|---|---|
 | GET | `/health` | core | public | Liveness + DB check |
-| POST | `/auth/login` | M01 | public | email + password, then OTP |
-| POST | `/auth/logout` | M01 | staff | |
-| GET | `/auth/me` | M01 | staff | Current actor + role assignments |
-| POST | `/admin/users` | M01 | admin | Create staff account, assign roles |
-| GET | `/products` | M02 | staff | Query + pagination |
-| POST | `/products` | M02 | manager/admin | Create product |
-| PATCH | `/products/:id` | M02 | manager/admin | Update or deactivate |
+| POST | `/auth/login` | M01 | public | ✅ email + password + one-time code in one request; 5 failures lock the account |
+| POST | `/auth/logout` | M01 | staff | ✅ Revokes the session |
+| GET | `/auth/me` | M01 | staff | ✅ Current actor + role assignments |
+| GET | `/stores` | M01 | staff | ✅ Caller's stores (all stores for admins) |
+| GET | `/admin/users` | M01 | admin | ✅ List staff accounts |
+| POST | `/admin/users` | M01 | admin | ✅ Create staff account, assign roles; returns TOTP setup once |
+| POST | `/admin/users/:id/unlock` | M01 | admin | ✅ Unlock a locked account |
+| GET | `/products` | M02 | staff | ✅ Search brand/generic/NDC, `includeInactive`, cursor pagination |
+| GET | `/products/:id` | M02 | staff | ✅ One product, including inactive |
+| POST | `/products` | M02 | manager | ✅ Create product (duplicate NDC → 409) |
+| PATCH | `/products/:id` | M02 | manager | ✅ Update, deactivate (`active: false`) or reactivate |
 | POST | `/stores/:storeId/receipts` | M03 | tech/manager | `Idempotency-Key` header |
 | GET | `/stores/:storeId/inventory` | M04 | tech/manager | Per-lot stock, filters |
 | POST | `/stores/:storeId/sales-events` | M14 | POS service | Signed, idempotent by external ID |
@@ -704,7 +708,7 @@ All paths are prefixed with `/api/v1` (DDS §8). Responses use the `{ data, requ
 | POST | `/recommendations/:id/review` | M08 | manager | accept / edit / reject |
 | GET | `/stores/:storeId/dashboard` | M12 | staff | Low stock, expiring, pending orders, AI alerts |
 | GET | `/stores/:storeId/reports?type=&from=&to=` | M13 | manager | CSV export |
-| GET | `/audit` | M13 | admin | Proposed for Q7 |
+| GET | `/audit` | M13 | admin | ✅ Newest first; filter by store, entity, date (Q7 proposal) |
 | GET | `/public/search?q=` | M10 | public | No quantities, Schedule II masked |
 | GET | `/public/nearby?productId=&zip=` | M11 | public | Location never stored |
 | POST | `/public/customers` | M15 | public | Optional registration |
@@ -712,7 +716,7 @@ All paths are prefixed with `/api/v1` (DDS §8). Responses use the `{ data, requ
 | DELETE | `/public/subscriptions/:id` | M15 | customer | Unsubscribe |
 | POST | `/chat` | M16 | staff | Read-only answers |
 
-Rows not listed in DDS §8 (logout, me, admin users, cycle counts, disposals, suppliers, send, order receipts, recommendations list, audit, customer endpoints, chat) are proposed additions. Each one is needed by a requirement the DDS assigns to the owning module.
+Rows not listed in DDS §8 (logout, me, stores, admin users, unlock, product by id, cycle counts, disposals, suppliers, send, order receipts, recommendations list, audit, customer endpoints, chat) are proposed additions. Each one is needed by a requirement the DDS assigns to the owning module.
 
 ## 9. Security and privacy boundaries
 

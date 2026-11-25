@@ -4,6 +4,12 @@ import Database from "better-sqlite3";
 
 export type Db = Database.Database;
 
+/** True when a statement failed on a UNIQUE or PRIMARY KEY constraint (map to CONFLICT). */
+export function isUniqueViolation(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null)?.code;
+  return code === "SQLITE_CONSTRAINT_UNIQUE" || code === "SQLITE_CONSTRAINT_PRIMARYKEY";
+}
+
 /**
  * Open the SQLite database with the pragmas the design relies on:
  * - foreign_keys: enforce relationships (off by default in SQLite)

@@ -13,7 +13,8 @@
     "test:coverage": "vitest run --coverage",
     "db:migrate": "tsx src/db/cli.ts migrate",
     "db:seed": "tsx src/db/cli.ts seed",
-    "drivers": "tsx src/drivers/run-all.ts"
+    "drivers": "tsx src/drivers/run-all.ts",
+    "mfa:code": "tsx src/db/cli.ts mfa-code"
   },
   "dependencies": {
     "@pharma/shared": "*",

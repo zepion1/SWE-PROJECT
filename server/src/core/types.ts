@@ -6,7 +6,8 @@ export interface RoleAssignment {
   storeId: string | null;
 }
 
-export type ServiceName = "WORKER" | "POS_ADAPTER";
+/** AUTH records sign-in attempts made before anyone is authenticated; it has no permissions. */
+export type ServiceName = "WORKER" | "POS_ADAPTER" | "AUTH";
 
 /** Who is performing an operation. Jobs and adapters act as a SERVICE identity (DDS §3.2). */
 export type Actor =

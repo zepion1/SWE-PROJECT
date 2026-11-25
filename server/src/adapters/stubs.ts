@@ -1,4 +1,5 @@
 import type { Adapters, GeocoderPort, MailPort, MfaPort, PosSignaturePort, SupplierPort } from "./ports";
+import { TotpMfa } from "./totp";
 
 /**
  * Deterministic stand-ins for external systems (Test Plan §4.7 "External stubs").
@@ -48,10 +49,12 @@ export class StubMail implements MailPort {
   }
 }
 
-/** Accepts the fixed development code "123456". Replace with TOTP in Iteration 1 (M01). */
+export const DEV_MFA_CODE = "123456";
+
+/** Development/test MFA: accepts the fixed code 123456. Production uses TotpMfa (adapters/totp.ts). */
 export class StubMfa implements MfaPort {
   verify(_secret: string | null, code: string) {
-    return code === "123456";
+    return code === DEV_MFA_CODE;
   }
 }
 
@@ -70,4 +73,9 @@ export function createStubAdapters(): Adapters {
     mfa: new StubMfa(),
     posSignature: new StubPosSignature(),
   };
+}
+
+/** Adapters for a running server: stubs for systems not yet integrated, real TOTP when MFA_MODE=totp. */
+export function createAdapters(config: { mfaMode: "totp" | "dev" }): Adapters {
+  return { ...createStubAdapters(), mfa: config.mfaMode === "totp" ? new TotpMfa() : new StubMfa() };
 }

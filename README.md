@@ -1,6 +1,8 @@
-# AI-Driven Pharmaceutical Real-Time Inventory and Customer Information System
+# RedHawk Pharmacy
 
-A centralized platform that connects participating pharmacies. Staff use it to manage lot-level inventory, expiration dates, suppliers and purchase orders. It also gives advisory, machine-learning demand forecasts, and offers a public portal where customers can check medication availability, cash prices and the nearest pharmacy.
+**AI-Driven Pharmaceutical Real-Time Inventory and Customer Information System**
+
+RedHawk Pharmacy is a centralized platform that connects participating pharmacies. Staff use it to manage lot-level inventory, expiration dates, suppliers and purchase orders. It also gives advisory, machine-learning demand forecasts, and offers a public portal where customers can check medication availability, cash prices and the nearest pharmacy.
 
 > **Course:** CSIT 515 Software Engineering & Reliability, Fall 2026, Montclair State University
 > **Team Seal-SIMD:** Maria Molano Escobar, Marko Maksuti, Ryan Petillo, Samuel Cordova
@@ -13,7 +15,7 @@ This is a classroom prototype. It uses **synthetic data only**. It implements te
 ## Table of contents
 
 1. [Project documents](#project-documents)
-2. [Scope](#scope)
+2. [Scope](#scope) · [Brand](#brand)
 3. [Users and roles](#users-and-roles)
 4. [Functional requirements and module map](#functional-requirements-and-module-map)
 5. [Non-functional targets](#non-functional-targets)
@@ -130,6 +132,15 @@ Priorities use MoSCoW (SRS Table 3.1). The *Iteration* column refers to the [roa
 
 Some targets, such as N2 at full scale and N3 uptime, can't be fully reproduced on course hardware. The Test Plan (§6) says how each one is measured and reported.
 
+## Brand
+
+| Token | Value | Use |
+|---|---|---|
+| RedHawk White | `#FFFFFF` | Page backgrounds, text on red |
+| RedHawk Red | `#D1190D` | Header, primary buttons, links, focus rings |
+
+Red on white has a contrast ratio of about 5.4:1, which meets WCAG 2.1 AA for normal text (N6). The tokens live in `client/src/styles.css`.
+
 ## Tech stack
 
 The stack is chosen for simplicity. It closes Test Plan open question **Q1**.
@@ -201,6 +212,29 @@ The Vite dev server forwards `/api` requests to the backend.
 | `npm run build` | Typecheck + production build of the client |
 | `npm run db:migrate` / `npm run db:seed` | Apply schema migrations / load synthetic data |
 | `npm run drivers` | Run the module drivers (DDS §10) |
+| `npm run worker` | Run the daily background jobs once (expiry alerts, forecasts, notices) |
+| `npm run mfa:code -- <email>` | Print a seeded user's current one-time code (for `MFA_MODE=totp`) |
+
+### Signing in (staff)
+
+Staff sign in at **http://localhost:5173/staff/login** with email, password and a 6-digit one-time code (F1).
+
+| Seeded user | Role | Store |
+|---|---|---|
+| `admin@redhawk.test` | System Administrator | all stores |
+| `manager@redhawk.test` | Pharmacist / Manager | Montclair |
+| `tech@redhawk.test` | Technician | Montclair |
+| `tech.clifton@redhawk.test` | Technician | Clifton |
+
+All seeded users share the dev-only password `ChangeMe!123`. All seed data is synthetic.
+
+**One-time codes** depend on `MFA_MODE`:
+- `dev` (default in development and tests): the code is always `123456`.
+- `totp` (default in production; `dev` is refused there): real authenticator codes (RFC 6238). Seeded users have fixed, public demo secrets, and `npm run mfa:code -- manager@redhawk.test` prints the current code. New accounts get a fresh secret, shown once to the System Administrator as a setup link for an authenticator app.
+
+Five consecutive failed sign-ins lock the account until a System Administrator unlocks it. Sessions last 8 hours.
+
+If your local database was seeded before Iteration 1, delete `server/data/` and run `npm run db:seed` again so the users get MFA secrets.
 
 ### Environment variables (server)
 
@@ -209,6 +243,7 @@ The Vite dev server forwards `/api` requests to the backend.
 | `PORT` | `3000` | API port |
 | `DATABASE_PATH` | `./data/pharmacy.db` | SQLite file (relative to `server/`) |
 | `NODE_ENV` | `development` | `test` uses an in-memory database |
+| `MFA_MODE` | `dev` (`totp` in production) | `dev` accepts `123456`; `totp` requires authenticator codes |
 
 ## API conventions
 
@@ -257,8 +292,8 @@ The build follows the Test Plan's dependency-driven integration increments (Test
 
 | Iteration | Increment | Modules | Delivers | Key tests |
 |---|---|---|---|---|
-| **0** | Skeleton | all (stubs) | Monorepo, SQLite schema, route stubs, module drivers, CI | build + smoke tests |
-| **1** | I1 Foundation | M01, M02, M13 audit writer | Login + MFA, RBAC, product catalog, audit writer | T06, T18, T21, T22, T25, T26 |
+| **0** ✅ | Skeleton | all (stubs) | Monorepo, SQLite schema, route stubs, module drivers, CI | build + smoke tests |
+| **1** ✅ | I1 Foundation | M01, M02, M13 audit writer | Login + MFA (TOTP), sessions, lockout, RBAC, staff accounts, product catalog, audit writer + audit log | T18, T21, T22, T25, T26 (T06 policy level; endpoint level with M05) |
 | **2** | I2 Inventory kernel | M03, M04, M05, M06 | Receiving, stock ledger + sales, adjustments, expiry blocking | T01–T04, T07, T08, T16, T27–T32, T63, T64 |
 | **3** | I3 Operations | M07, M08, M12, M13 reports | Suppliers, purchase orders, reorder suggestions, dashboard, reports | T09, T15, T19, T36–T38, T41, T48, T49 |
 | **4** | I4 Analytics & POS | M09, M14 | Baseline forecasts, POS adapter with replay safety | T05, T10, T11, T17, T40, T60, T66 |
@@ -274,7 +309,7 @@ The build follows the Test Plan's dependency-driven integration increments (Test
 - **Integration tests** call the real Express app against an in-memory SQLite database (`NODE_ENV=test`).
 - **Module drivers** (`server/src/drivers/`) call each kernel module's exports with representative inputs and print a structured result, as DDS §10.1 requires.
 - **Test case IDs:** name tests after Test Plan IDs, e.g. `it("T63: sells across lots first-expired-first-out", ...)`, so the traceability matrix (Test Plan §9) can be generated from test output.
-- **Coverage:** `npm run test:coverage`; the target is ≥ 70% (N9).
+- **Coverage:** `npm run test:coverage`. CI fails if line or statement coverage falls below 70% in either workspace (N9).
 - **CI:** GitHub Actions runs typecheck and tests on every pull request.
 
 ## Development workflow
@@ -296,6 +331,6 @@ These Test Plan §11.3 questions affect implementation. Record the team's decisi
 | Q3 | Low Stock definition; same as reorder point? | Open. Separate `low_stock_threshold` and `reorder_point` columns |
 | Q4 | May a manager approve their own adjustment? | Open. Skeleton default: **no** self-approval |
 | Q6 | Minimum acceptable map/directions for F21 | Open. Proposed: ranked list plus external directions link |
-| Q7 | Who views audit logs, through which endpoint? | Open. Proposed: System Administrator via `GET /api/v1/audit` |
+| Q7 | Who views audit logs, through which endpoint? | Implemented as proposed (needs team sign-off): System Administrator via `GET /api/v1/audit` |
 | Q11 | Disposal dollar loss: unit cost or cash price? | Open. Schema stores both supplier unit cost and cash price |
-| Q12 | Integration order; where does the audit writer land? | Proposed: M13 audit writer ships in Iteration 1 |
+| Q12 | Integration order; where does the audit writer land? | ✅ M13 audit writer shipped in Iteration 1 |
