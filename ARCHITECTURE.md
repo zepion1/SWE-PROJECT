@@ -82,7 +82,7 @@ flowchart TB
     jobs -- "service identity" --> mods
 ```
 
-> **Why SQLite?** `better-sqlite3` gives synchronous, serializable transactions. That lets M04 lock-select-decrement-audit in one `db.transaction(...)` without any race, which covers T04 and T16. SQLite's single-writer model is fine at prototype scale. The repository layer keeps SQL in one place, so a later move to Postgres touches only that layer.
+> **Why SQLite?** `better-sqlite3` gives synchronous, serializable transactions. That lets M04 check availability, post the issue and audit in one `db.transaction(...)` without any race, which covers T04 and T16. SQLite's single-writer model is fine at prototype scale. The repository layer keeps SQL in one place, so a later move to Postgres touches only that layer.
 
 ## 3. Layered architecture and dependency rules
 
@@ -114,7 +114,7 @@ flowchart TB
 | Caller | May depend on | Must never |
 |---|---|---|
 | Staff UI / Customer UI | `/api/v1` HTTP contracts | Read the database or internal types beyond `shared/` |
-| Inventory, Ordering, Expiration (M03, M05, M06, M07) | Catalog, stores, repository, auth context, audit, **M04 for any stock change** | Update `lots.qty_on_hand` directly |
+| Inventory, Ordering, Expiration (M03, M05, M06, M07) | Catalog, stores, repository, auth context, audit, **M04 for any stock change** | Bypass document posting and audit |
 | Public Search (M10, M11) | Public product projection, availability classifier, store lookup | Return quantities or Schedule II availability |
 | Forecasting (M09) | Read-only sales history and inventory snapshots | Write stock or purchase orders |
 | AI chat (M16) | Read-only forecast/recommendation queries | Mutate anything; proposals become review requests |
@@ -209,7 +209,8 @@ erDiagram
     PRODUCT ||--o{ STORE_PRODUCT : "is listed as"
     STORE_PRODUCT ||--o{ LOT : "stocked in"
     SUPPLIER ||--o{ LOT : supplies
-    LOT ||--o{ STOCK_MOVEMENT : "changed by"
+    LOT ||--o{ DOCUMENT_LINE : "received or issued"
+    DOCUMENT ||--|{ DOCUMENT_LINE : contains
     LOT ||--o{ ADJUSTMENT_REQUEST : "corrected by"
     STORE ||--o{ PURCHASE_ORDER : places
     SUPPLIER ||--o{ PURCHASE_ORDER : receives
@@ -299,19 +300,14 @@ erDiagram
         string supplier_id FK
         string lot_number
         string expires_on "store-local date"
-        int qty_on_hand "never negative"
         string status "ACTIVE QUARANTINED DEPLETED EXPIRED"
         int version "optimistic concurrency"
     }
-    STOCK_MOVEMENT {
+    DOCUMENT_LINE {
         string id PK
+        string document_id FK
         string lot_id FK
-        int delta "signed"
-        string type "RECEIPT SALE ADJUSTMENT DISPOSAL RETURN"
-        string reason
-        string external_event_id
-        string actor_id
-        string occurred_at
+        int quantity
     }
     ADJUSTMENT_REQUEST {
         string id PK
@@ -404,10 +400,10 @@ erDiagram
 ```
 
 **Constraints the database enforces** (DDS §5.2):
-- `CHECK (qty_on_hand >= 0)` on `lot`, `CHECK (qty > 0)` on order lines and sales, `CHECK (cash_price_cents >= 0)`, `CHECK (horizon_days IN (7, 30, 90))`.
+- Check calculated lot availability before committing an issue, `CHECK (qty > 0)` on order lines and sales, `CHECK (cash_price_cents >= 0)`, `CHECK (horizon_days IN (7, 30, 90))`.
 - `UNIQUE (store_product_id, lot_number, supplier_id)` on `lot`. `UNIQUE (external_event_id)` on `sales_event`.
 - `UNIQUE (store_id, alert_type, resource_id, alert_date)` on `alert`, so the daily job is idempotent (T15).
-- Triggers reject `UPDATE` and `DELETE` on `stock_movement` and `audit_event`, which keeps both append-only.
+- Audit entries are append-only. A manager corrects an erroneous GRN line with a reason and before/after audit in one transaction. The stock view sums GRN quantities minus GIN quantities per store, product and lot. A later delivery creates a second GRN linked to the same invoice.
 - `AUDIT_EVENT` points to its target by `(entity_type, entity_id)` rather than a foreign key, so it isn't coupled to every table.
 - `SESSION`, `SUPPLIER_PRODUCT` and `IDEMPOTENCY_KEY` aren't listed in DDS §5. They support M01 sessions, F12 supplier prices, and idempotent receipts (T02).
 
@@ -439,8 +435,8 @@ sequenceDiagram
         M03->>M04: applyReceipt(lot, +qty)
         activate M04
         Note over M04,DB: BEGIN TRANSACTION
-        M04->>DB: upsert lot, qty_on_hand += qty, version++
-        M04->>DB: insert stock_movement RECEIPT
+        M04->>DB: validate lot and identify receipt line
+        M04->>DB: record receipt once; verifying an existing GRN adds no units
         M04->>M13: recordAudit(RECEIPT, before, after)
         M13->>DB: insert audit_event
         M04->>DB: store idempotency response
@@ -480,7 +476,7 @@ sequenceDiagram
                 M04-->>M14: INSUFFICIENT_STOCK or EXPIRED_LOT (T03, T64)
             else enough stock
                 loop each lot until qty is covered
-                    M04->>DB: decrement lot, append SALE movement
+                    M04->>DB: insert GIN line for allocated lot
                 end
                 M04->>DB: insert sales_event
                 M04->>M13: recordAudit(SALE)

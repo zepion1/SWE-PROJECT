@@ -64,7 +64,9 @@ The system will cover inventory management operations for participating pharmaci
 
 The system will support inventory updates based on sales recorded at the pharmacy\textquotesingle s point-of-sale system. Inventory decisions involving stock adjustments and purchase orders will remain subject to approval by authorized pharmacy personnel.
 
-Out of scope for this version are prescription dispensing and e-prescribing, insurance claim processing, online payment, home delivery, and any medical or dosing advice.
+Inventory is tracked by pharmacy, product, and lot. Staff enter delivery counts by hand. Barcode scanning, separate stock balances for warehouses or rooms within a pharmacy, and stock transfers between locations are outside the project scope. The customer portal provides a distance-sorted list of pharmacies; an embedded map is deferred.
+
+Also out of scope for this version are prescription dispensing and e-prescribing, insurance claim processing, online payment, home delivery, and any medical or dosing advice.
 
 \subsection{1.3. Glossary}\label{glossary}
 
@@ -82,6 +84,8 @@ Out of scope for this version are prescription dispensing and e-prescribing, ins
 \endhead
 
 \endlastfoot
+GRN & Goods Received Note \\ \hline
+GIN & Goods Issue Note \\ \hline
 NDC & National Drug Code \\ \hline
 Schedule (I, II, III, IV, V) & Drugs, substances, and certain chemicals used to make drugs are classified into five (5) distinct categories or schedules depending upon the drug's acceptable medical use and the drug's abuse or dependency potential \\ \hline
 WCAG & Web Content Accessibility Guidelines. Recognized technical standard for digital accessibility that ensures websites and apps are usable for people with disabilities \\ \hline
@@ -159,7 +163,7 @@ Keep an audit log (who, when, what changed) for every inventory change. & Must \
 \multicolumn{2}{|>{\raggedright\arraybackslash}m{(\linewidth - 2\tabcolsep) * \real{1.0000} + 2\tabcolsep}|}{%
 \textbf{Inventory Management}} \\ \hline
 Add, edit, and deactivate products with name, National Drug Code (NDC), strength, dosage form, category, and price. & Must \\ \hline
-Receive stock by barcode scan or manual entry, capturing lot number, expiration date, quantity, and supplier. & Must \\ \hline
+Receive stock by manual entry, capturing lot number, expiration date, quantity, and supplier. & Must \\ \hline
 Automatically reduce stock when a sale is recorded at the point of sale; allow manual stock adjustments with a reason code, subject to Pharmacist/Manager approval. & Must \\ \hline
 Display real-time stock on hand for each product, broken down by lot, with search and filtering. & Must \\ \hline
 Support cycle counts that flag differences between counted and recorded quantities. & Should \\ \hline
@@ -243,15 +247,15 @@ Maintainability & Modular design with documented APIs and at least 70\% automate
 \endlastfoot
 \multicolumn{3}{|>{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep) * \real{1.0000} + 4\tabcolsep}|}{%
 \textbf{User Management and Security}} \\ \hline
-F1 & Staff sign-in and roles & Staff members will sign in with a username, a password and a second proof of identity, such as a one-time code. Each person then will only see the screens and actions their role allows (Section 2). The System Administrator will create staff member accounts and assign them roles. \\ \hline
+F1 & Staff sign-in and roles & Staff members will sign in with a correct username, the respective correct password for that username, and a second proof of identity, such as a one-time code. Each person then will only see the screens and actions their role allows (Section 2). The System Administrator will create staff member accounts and assign them roles. \\ \hline
 F2 & Customer access and accounts & Customers will be able to search and view results without creating an account. A customer who chooses to register will gain extra features, such as back-in-stock notices (F23). \\ \hline
-F3 & Record of changes (audit log) & Every change to inventory will be recorded automatically, including who made it, when, and what changed, so any change will be able to be traced afterward. \\ \hline
+F3 & Record of changes (audit log) & Record who changed inventory, when and why. For an approved correction to a goods received note (GRN), the system will retain the line identifier, old and new quantities, reason code and the explanation. Purchase and sales invoices will record charges; they will not affect stock. \\ \hline
 \multicolumn{3}{|>{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep) * \real{1.0000} + 4\tabcolsep}|}{%
 \textbf{Inventory Management}} \\ \hline
 F4 & Product records & Staff members will be able to add a product, change its details, or deactivate it. Each product will have a name, National Drug Code (NDC), strength, dosage form, category, and price. \\ \hline
-F5 & Receiving stock & When a delivery arrives, staff members will scan each item's barcode or type its details by hand. The system will record the lot number, expiration date, quantity, supplier, and add the quantity to stock on hand. \\ \hline
+F5 & Receiving stock & Technicians will only be able to open their own pharmacy's GRNs. For each GRN line, they will count the delivered units of the listed product and lot and enter that count. The system record a quantity difference or an unexpected item for review. A subsequent delivery will receive its own GRN and may reference the same purchase invoice. \\ \hline
 F6 & Sales and stock corrections & Each sale recorded at the pharmacy's point-of-sale system (the checkout) will reduce stock on hand automatically. Staff will also be able to correct a quantity by hand and in doing so must select a reason. Manual corrections will take effect only when a Pharmacist/Manager approves them (Section 2). \\ \hline
-F7 & Stock on hand & For every product, staff will be able to see the quantity currently on hand broken down by lot, search, and filter the list. Receipts, sales, and corrections will show up within 5 seconds (Section 3). \\ \hline
+F7 & Stock on hand & For each pharmacy, product and lot, calculate on-hand units from the sum of GRN line quantities minus the sum of goods issue note (GIN) line quantities. Staff can search and filter lot balances. Changes appear within five seconds. \\ \hline
 F8 & Physical counts & During a physical count (cycle count), staff members will enter the quantity they counted. The system will compare it with the recorded quantity and flag any difference for a Pharmacist/Manager to review. \\ \hline
 \multicolumn{3}{|>{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep) * \real{1.0000} + 4\tabcolsep}|}{%
 \textbf{Expiration Management}} \\ \hline
@@ -282,6 +286,75 @@ F24 & Pharmacist dashboard & A single screen will summarize low-stock items, exp
 F25 & Reports & Staff will be able to produce reports on inventory value, stock movement, expiration losses, forecast accuracy, and export them for use outside the system. \\ \hline
 \end{longtable}
 }
+
+\subsection{4.1. Use cases}\label{use-cases}
+
+\subsubsection*{UC-01. Receive stock}
+\textbf{Actors:} Pharmacy Technician, Pharmacist / Manager.
+
+\textbf{Requirements:} F3, F5, F6, F7, F14.
+
+\textbf{Receive stock: basic course of events}
+\begin{enumerate}
+\item The technician opens the delivery's GRN.
+\item The system displays the supplier and each line's product, lot number, expiration date and recorded quantity.
+\item The technician manually enters the NDC, lot number and expiration date printed on the package, counts the units from that lot and enters the quantity.
+\item The system finds the GRN line for the entered product and lot, compares the expiration date and quantity with that line, and asks the technician to confirm when both match.
+\item The technician confirms the count.
+\item The system records who verified the line and when, and displays the confirmation.
+\end{enumerate}
+
+\textbf{Receive stock -- unexpected product or lot}
+\begin{enumerate}
+\item The technician opens the delivery's GRN.
+\item The system displays the supplier and each line's product, lot number, expiration date and recorded quantity.
+\item The technician manually enters the NDC, lot number and expiration date printed on the package, counts the units from that lot and enters the quantity.
+\item If no GRN line matches the entered NDC and lot number, the system records the item separately for review.
+\end{enumerate}
+
+\textbf{Receive stock -- expiration date differs from GRN}
+\begin{enumerate}
+\item The technician opens the delivery's GRN.
+\item The system displays the supplier and each line's product, lot number, expiration date and recorded quantity.
+\item The technician manually enters the NDC, lot number and expiration date printed on the package, counts the units from that lot and enters the quantity.
+\item The system finds the GRN line with the same NDC and lot number. If the entered expiration date differs from the recorded date, the system displays both dates and leaves the line unverified for the Pharmacist / Manager to review.
+\end{enumerate}
+
+\textbf{Receive stock -- count differs from GRN}
+\begin{enumerate}
+\item The technician opens the delivery's GRN.
+\item The system displays the supplier and each line's product, lot number, expiration date and recorded quantity.
+\item The technician manually enters the NDC, lot number and expiration date printed on the package, counts the units from that lot and enters the quantity.
+\item The system displays the GRN quantity and the entered count and prompts for a recount. This includes a count of zero when the GRN quantity is positive.
+\item The technician recounts the units and confirms the physical count.
+\item If the recount matches the GRN quantity, the system records the verification. If the counts still differ, the system records both values and opens a discrepancy for the Pharmacist / Manager.
+\item The Pharmacist / Manager opens the discrepancy.
+\item The system displays the GRN line, the confirmed count and the linked purchase documents. When the Pharmacist / Manager selects a resolution, the system displays its effect on stock before approval.
+\end{enumerate}
+
+\textbf{Review outcomes}
+\begin{itemize}
+\item \textbf{GRN quantity confirmed.} If a further count establishes that the GRN quantity was correct, the Pharmacist / Manager records the count. The system closes the discrepancy and retains the existing GRN quantity.
+\item \textbf{Part of the order is still due.} The Pharmacist / Manager approves correcting the original GRN line to the quantity received. The system saves the correction and keeps the outstanding quantity open. For a later delivery, the technician records a new GRN linked to the same purchase invoice and discrepancy. The system includes the new receipt in stock and closes the discrepancy when the outstanding quantity is accounted for. If the supplier agrees to a credit or cancellation for the remaining units, the Pharmacist / Manager records the agreement and the system closes the discrepancy without posting another receipt.
+\item \textbf{Incorrect GRN quantity.} If the order and invoice confirm that the quantity purchased equals the quantity received, the Pharmacist / Manager records the reason and approves correcting the original GRN line. The system saves the corrected quantity and closes the discrepancy.
+\end{itemize}
+For each approved correction, the system records the old and new quantities, reason code, explanation, approving staff member and time. The inventory view reflects the corrected GRN within five seconds. If the Pharmacist / Manager cannot establish the cause, the system keeps the discrepancy open.
+
+\textbf{Receive stock -- count left blank}
+\begin{enumerate}
+\item The technician opens the delivery's GRN.
+\item The system displays the supplier and each line's product, lot number, expiration date and recorded quantity.
+\item The technician leaves the count field blank for a GRN line.
+\item The system leaves the line unchecked.
+\end{enumerate}
+
+\textbf{Receive stock -- negative count}
+\begin{enumerate}
+\item The technician opens the delivery's GRN.
+\item The system displays the supplier and each line's product, lot number, expiration date and recorded quantity.
+\item The technician selects a line and enters a negative count.
+\item The system displays a validation error and does not record the count.
+\end{enumerate}
 
 \clearpage
 \section{5. Programmed Meetings}\label{programmed-meetings}

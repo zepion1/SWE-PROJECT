@@ -369,6 +369,9 @@ Success Criterion & Stock delta equals accepted receipt quantity exactly once. \
 \end{longtable}
 }
 
+\textbf{Receipt reconciliation (F3, F5, F7, F14).}
+Start with 20 units. Present a goods received note for 10 and physically accept 8 of the stated product and lot. Verify a balance of 28, a recorded shortage of 2, and one receipt movement of +8 linked to the note. Replay the receipt and link a purchase invoice for 10. Verify that the balance remains 28 and the shortage is still visible. Repeat with all 10 accepted; expect 30 units and no discrepancy.
+
 \subsection{5.04. TP-04 - M04 Stock Ledger and Sales}\label{tp-04---m04-stock-ledger-and-sales}
 
 {\def\LTcaptype{none} % do not increment counter
@@ -392,6 +395,9 @@ Procedure / Expected Result & Valid sale decreases eligible lots; duplicate even
 Success Criterion & No lot becomes negative; ledger and audit match the committed stock delta. \\ \hline
 \end{longtable}
 }
+
+\textbf{Outgoing document traceability (F3, F6).}
+Start with 20 sellable units in one lot. Record a sale of 3 and inspect its goods issue note, sales invoice, ledger and audit record. Expect a balance of 17 and one movement of -3 traceable to the issue. Replay the sale and verify the balance remains 17. Attempt to commit a movement without a supporting document; expect rejection and no balance change.
 
 \subsection{5.05. TP-05 - M05 Adjustments and Cycle Counts}\label{tp-05---m05-adjustments-and-cycle-counts}
 

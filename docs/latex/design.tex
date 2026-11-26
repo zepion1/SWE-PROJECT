@@ -90,7 +90,7 @@ Extensions E2 & Advanced chatbot, anomaly detection, embedded map integration; t
 
 \subsection{2.2 Exclusions inherited from SRS}\label{exclusions-inherited-from-srs}
 
-No dispensing or e-prescribing, no insurance claims, no payments, no home delivery, and no medical or dosing advice. Customer search never exposes exact inventory counts. Schedule II availability is replaced by a contact-pharmacy message.
+The prototype uses manual receiving and one inventory per pharmacy, broken down by product and lot. Barcode scanning, warehouse or room balances, and location transfers are out of scope. No dispensing or e-prescribing, no insurance claims, no payments, no home delivery, and no medical or dosing advice. Customer search never exposes exact inventory counts. Schedule II availability is replaced by a contact-pharmacy message.
 
 \subsection{2.3 Cross-cutting decisions requiring team approval}\label{cross-cutting-decisions-requiring-team-approval}
 
@@ -204,7 +204,7 @@ For a semester prototype, one backend instance, one relational database, and a w
 Identifiers & UUID-like opaque IDs; NDC remains a string (preserve leading zeros) \\ \hline
 Time & Store timestamps in UTC; display local pharmacy time; expiration is date in pharmacy local calendar \\ \hline
 Money & Decimal cents or fixed decimal; never binary floating-point for money \\ \hline
-Quantities & Nonnegative integer on-hand; signed deltas in ledger with atomic checks \\ \hline
+Quantities & Nonnegative integer on-hand; net receipt and issue quantities with atomic checks \\ \hline
 API responses & JSON result \{data, requestId\} or \{error: \{code, message, details\}, requestId\} \\ \hline
 Authorization & Server enforces role and store scope on every operation \\ \hline
 Versioning & Proposed /api/v1/*; breaking changes require a new version \\ \hline
@@ -219,7 +219,7 @@ Pagination & Cursor or bounded page limit; default 25, max 100 \\ \hline
 \begin{quote}
 · Available-to-sell = sum of active, unexpired, non-quarantined lot quantities in a store; do not promise availability from stale inventory.
 
-· A ledger row is append-only; a correction is a new compensating movement, never a deletion.
+· An approved GRN correction updates its quantity and preserves the before and after values in an append-only audit entry.
 
 · Only authorized pharmacist/manager approval transitions a pending adjustment or purchase order to approved.
 
@@ -291,9 +291,12 @@ RoleAssignment & id PK, user\_id FK, store\_id FK, role & Scopes privilege to st
 Product & id PK, ndc unique, brand\_name, generic\_name, strength, form, category, schedule\_class, active & Canonical catalog \\ \hline
 StoreProduct & id PK, store\_id FK, product\_id FK, cash\_price, reorder\_point, low\_stock\_threshold, active & Per-store listing and settings \\ \hline
 Supplier & id PK, name, contact, lead\_days, minimum\_order & Procurement master \\ \hline
-Lot & id PK, store\_product\_id FK, supplier\_id FK, lot\_number, expires\_on, qty\_on\_hand, status, version & Lots and safety/expiry \\ \hline
-StockMovement & id PK, lot\_id FK, delta, type, reason, external\_event\_id?, actor\_id?, occurred\_at & Append-only stock ledger \\ \hline
-AdjustmentRequest & id PK, lot\_id FK, requested\_delta, reason, status, requested\_by, reviewed\_by? & Approval workflow \\ \hline
+Lot & id PK, store\_product\_id FK, supplier\_id FK, lot\_number, expires\_on, status, version & Lots and safety/expiry \\ \hline
+LotStock (SQL view) & store, product, lot, calculated on-hand units & Sum GRN quantities minus GIN quantities. Exclude invoices and audit records. \\ \hline
+Document & id PK, type, number, store, date, invoice reference & Headers for GRNs, GINs and invoices. Multiple receipts may reference one purchase invoice. \\ \hline
+DocumentLine & id PK, document FK, product, lot, quantity & One stock-bearing quantity per inventory note line. Previous values are preserved in the audit. \\ \hline
+Discrepancy & id PK, original receipt line FK, stated and counted quantities, status, resolution type, resolving line FK, evidence reference, explanation, reviewer, reviewed at & Open until evidence establishes the outcome. Retain supplier agreement for credit or cancellation. \\ \hline
+AdjustmentRequest & id PK, lot\_id FK, requested\_delta, affected document line FK, reason code, written explanation, status, requested\_by, reviewed\_by? & Approval workflow \\ \hline
 PurchaseOrder & id PK, store\_id FK, supplier\_id FK, status, created\_by, approved\_by?, created\_at & Ordering \\ \hline
 PurchaseOrderLine & id PK, order\_id FK, product\_id FK, qty, unit\_price & Order line items \\ \hline
 SalesEvent & id PK, external\_event\_id unique, store\_id, product\_id, qty, sold\_at & Idempotent sales history \\ \hline
@@ -307,7 +310,11 @@ Subscription & id PK, customer\_id, store\_product\_id, status & Optional custom
 
 \subsection{5.1 Primary relationships}\label{primary-relationships}
 
-Store 1:N StoreProduct; Product 1:N StoreProduct; StoreProduct 1:N Lot; Lot 1:N StockMovement; Store 1:N PurchaseOrder; PurchaseOrder 1:N PurchaseOrderLine; StoreProduct 1:N Forecast and Recommendation. User N: M Store through RoleAssignment. AuditEvent refers to the target by type and ID to avoid coupling to every domain table.
+M04 calculates stock through a SQL view that aggregates receipt and issue lines with opposite signs by store, product and lot. Lot stores identity and expiry metadata. Serialize the availability check and GIN posting in one write transaction.
+
+M03 distinguishes an unchecked line (no count) from a count of zero. It compares each submitted nonnegative whole-number count with the existing GRN line, including zero. A confirmed mismatch opens a discrepancy. A negative count returns a validation error without recording an observation or changing the GRN. Recording a count leaves the stock view unchanged pending review. M05 lets a manager correct the original line under a version check and records actor, time, old and new quantities, reason code and explanation atomically. Correcting 10 to 8 changes the view by -2 exactly once. If 2 are still due, keep the discrepancy open until a second GRN records their arrival against the same invoice or the supplier confirms cancellation or credit. If only 8 were purchased and delivered, close after correcting the GRN. If a recount confirms 10, close without editing the quantity.
+
+Store 1:N StoreProduct; Product 1:N StoreProduct; StoreProduct 1:N Lot; Lot 1:N inventory note lines; Store 1:N PurchaseOrder; PurchaseOrder 1:N PurchaseOrderLine; StoreProduct 1:N Forecast and Recommendation. User N: M Store through RoleAssignment. AuditEvent refers to the target by type and ID to avoid coupling to every domain table.
 
 \subsection{5.2 Constraints}\label{constraints}
 
@@ -320,7 +327,7 @@ Store 1:N StoreProduct; Product 1:N StoreProduct; StoreProduct 1:N Lot; Lot 1:N 
 
 · Controlled substance classification is validated when product details are saved; never inferred from free text at search time.
 
-· SalesEvent.external\_event\_id is unique for replay safety; StockMovement carries its upstream event reference.
+· SalesEvent.external\_event\_id is unique for replay safety; the GIN carries the upstream event reference.
 \end{quote}
 
 \clearpage
@@ -449,8 +456,8 @@ Outputs & updated lot and receipt reference \\ \hline
 Preconditions & Store/product/supplier active; qty positive; date valid. \\ \hline
 Postconditions and invariants & Stock rises exactly once; movement + audit committed atomically. \\ \hline
 Error handling & Unknown product, duplicate receipt, or inconsistent lot date. \\ \hline
-Side effects & Lot and movement rows created; alerts may be refreshed. \\ \hline
-Representative test cases & Retry same barcode upload; same lot with different expiry; quantity zero. \\ \hline
+Side effects & Lot metadata and GRN lines recorded; alerts may be refreshed. \\ \hline
+Representative test cases & Retry the same manually entered receipt; same lot with different expiry; quantity zero. \\ \hline
 \end{longtable}
 }
 
@@ -497,7 +504,7 @@ Outputs & new stock summary or explicit rejection \\ \hline
 Preconditions & qty\textgreater0; active product; all selected lots nonexpired and available. \\ \hline
 Postconditions and invariants & No lot negative; exact quantity decremented once; ledger and audit persist. \\ \hline
 Error handling & Insufficient eligible lots; concurrent conflict; duplicate event replays same result. \\ \hline
-Side effects & Transactional update of lots and sales ledger. \\ \hline
+Side effects & Transactional posting of GIN lines and audit. \\ \hline
 Representative test cases & Last unit sold twice; expired-only stock; POS event replay. \\ \hline
 \end{longtable}
 }
@@ -1101,11 +1108,11 @@ Driver status on October 29: this is the required interface outline only; this d
 
 \textbf{UC-01 Receive stock}
 
-Technician selects store and product → provides lot, expiration, supplier, and positive quantity → M03 checks identity and metadata → M04 ledger commits receipt and audit together → dashboard/search eventually refresh. If a duplicate idempotency key is retried, return original receipt; a conflicting duplicate is rejected.
+M03 uses the signed-in technician's assigned store to list GRNs and checks that assignment before opening or verifying a GRN by ID. M03 receives the manually entered NDC, lot number, expiration date and count. It finds the GRN line by product and lot, flags a difference in expiration dates for review, and compares the physical count with the recorded quantity. If a different product or an unlisted lot arrives, record its product, lot and quantity separately for review. Exclude those units from the count for the expected line. Manager-approved corrections edit the original line with an audit entry. A later delivery is a new GRN; retries cannot create duplicate receipts.
 
 \textbf{UC-02 POS sale}
 
-POS adapter validates event → M04 loads all eligible nonexpired lots ordered by soonest expiry → locks rows → checks sellable total → allocates quantity across lots → writes movements, SalesEvent and audit → commits → acknowledges. If insufficient, rolls back and returns reason; POS requires operational exception resolution.
+POS adapter validates event → M04 links the sale to a goods issue note and its sales invoice, then loads all eligible nonexpired lots ordered by soonest expiry → locks rows → checks sellable total → allocates quantity across lots → writes GIN lines, SalesEvent and audit → commits → acknowledges. If insufficient, rolls back and returns reason; POS requires operational exception resolution.
 
 \textbf{UC-03 Manual stock correction}
 
@@ -1563,15 +1570,15 @@ lots = lock\_eligible\_lots(store, product, expires\_after=today(store))
 
 sort lots by expiration ascending, then lot id
 
-if sum(lot.qty for lot in lots) \textless{} qty: rollback; fail INSUFFICIENT\_STOCK
+if sum(lot.onHandFromView for lot in lots) \textless{} qty: rollback; fail INSUFFICIENT\_STOCK
 
 remaining = qty
 
 for lot in lots while remaining \textgreater{} 0:
 
-take = min(lot.qty, remaining)
+take = min(lot.onHandFromView, remaining)
 
-decrement(lot, take); append\_movement(lot, -take, externalEventId)
+append\_issue\_line(lot, take, externalEventId)
 
 remaining -= take
 
