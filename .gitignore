@@ -1,4 +1,5 @@
 # Local document sources and review files
+/AGENTS.md
 /.doc-review/
 /docs/*.docx
 /docs/(0.5) Due Dates Fall 2026.pdf

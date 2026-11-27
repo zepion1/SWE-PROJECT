@@ -1,0 +1,286 @@
+% Additional use cases and compact activity diagrams for requirements.tex.
+\newcommand{\compactactivity}[6]{%
+\medskip
+\subsubsection*{#1 activity diagram}
+\begin{center}
+\begin{tikzpicture}[font=\footnotesize,>=stealth,
+ action/.style={draw,rounded corners,align=center,text width=8cm,inner sep=5pt},
+ branch/.style={draw,rounded corners,align=center,text width=4.2cm,inner sep=5pt}]
+\fill (0,0) circle (3pt);
+\node[action] (actor) at (0,-1) {#2};
+\node[action] (system) at (0,-2.5) {#3};
+\draw[->] (0,0) -- (actor);
+\draw[->] (actor) -- (system);
+\draw (0,-4) ++(0,.32) -- ++(.46,-.32) -- ++(-.46,-.32) -- ++(-.46,.32) -- cycle;
+\node[anchor=east,align=right,text width=5.8cm] at (-.52,-4) {#4};
+\node[branch] (no) at (4.6,-4) {#6};
+\node[action] (yes) at (0,-5.7) {#5};
+\node[circle,draw,minimum size=9pt,inner sep=0pt] (noend) at (4.6,-5.25) {};
+\fill (noend.center) circle (2.3pt);
+\node[circle,draw,minimum size=9pt,inner sep=0pt] (yesend) at (0,-6.85) {};
+\fill (yesend.center) circle (2.3pt);
+\draw[->] (system) -- (0,-3.68);
+\draw[->] (.46,-4) -- node[above]{no} (no);
+\draw[->] (0,-4.32) -- node[left]{yes} (yes);
+\draw[->] (no) -- (noend);
+\draw[->] (yes) -- (yesend);
+\end{tikzpicture}
+\end{center}
+}
+
+\clearpage
+\subsubsection*{UC-02. Staff sign in}
+\textbf{Actors:} Staff Member.
+
+\textbf{Requirements:} F1.
+
+\textbf{Basic course of events}
+\begin{enumerate}
+\item The staff member enters a username and the password belonging to that username.
+\item The system will verify the username-password pair and send a one-time code to the staff member's registered email address.
+\item The staff member enters the one-time code.
+\item The system will verify the code, sign in the staff member and display only actions permitted by that person's role and pharmacy.
+\end{enumerate}
+
+\textbf{Incorrect credentials or code.} The system will deny access and identify the entry that must be tried again without revealing whether another account exists.
+
+\compactactivity{UC-02}{Staff member enters username and password.}{System will verify the pair, send a one-time code and verify the entered code.}{Do both authentication checks succeed?}{System will create the staff session and apply role and pharmacy access.}{System will deny access and permit another attempt.}
+
+\clearpage
+\subsubsection*{UC-03. Manage staff accounts and roles}
+\textbf{Actors:} System Administrator.
+
+\textbf{Requirements:} F1, F3.
+
+\textbf{Basic course of events}
+\begin{enumerate}
+\item The administrator enters the staff member's name, unique username, email address, role and pharmacy.
+\item The system will validate the entries and create the account and role assignment.
+\item The system will record the administrator and creation time in the audit log.
+\end{enumerate}
+
+\textbf{Invalid account data.} The system will identify each missing required field, used username, invalid email format, unrecognized role or unrecognized pharmacy and will create no account.
+
+\compactactivity{UC-03}{Administrator enters the staff account and role assignment.}{System will check required fields, username availability, email format, and the referenced role and pharmacy.}{Are required fields present, username unused, email format valid, and role and pharmacy IDs found?}{System will create the account and audit entry.}{System will identify the failed condition and create no account.}
+
+\clearpage
+\subsubsection*{UC-04. Maintain product, supplier and reorder settings}
+\textbf{Actors:} Pharmacist / Manager.
+
+\textbf{Requirements:} F3, F4, F12.
+
+\textbf{Basic course of events}
+\begin{enumerate}
+\item The Pharmacist / Manager selects a product or supplier record.
+\item The system will display its current details and the product's pharmacy-specific price and reorder point where applicable.
+\item The Pharmacist / Manager adds or changes the permitted values and saves the record.
+\item The system will validate and save the record and write the change to the audit log.
+\end{enumerate}
+
+\textbf{Invalid record.} The system will identify each invalid or duplicate value and save no change.
+
+\compactactivity{UC-04}{Pharmacist / Manager enters product, supplier or reorder-setting values.}{System will validate required values, identifiers and numeric ranges.}{Are all values valid?}{System will save the record and audit entry.}{System will identify the invalid values and save no change.}
+
+\clearpage
+\subsubsection*{UC-05. Record a point-of-sale sale}
+\textbf{Actors:} Point-of-Sale System.
+
+\textbf{Requirements:} F3, F6, F7, F10, F11.
+
+\textbf{Basic course of events}
+\begin{enumerate}
+\item The point-of-sale system will send the pharmacy, external sale identifier, products, quantities and sale time.
+\item The system will verify that enough unexpired stock exists and select the lots expiring first.
+\item The system will create a GIN and sales invoice linked to the external sale identifier.
+\item The stock view will subtract the GIN quantities and the system will acknowledge the sale.
+\end{enumerate}
+
+\textbf{Insufficient or expired stock.} The system will reject the sale event, create no GIN and return the exact reason.
+
+\compactactivity{UC-05}{Point-of-sale system will send a uniquely identified sale.}{System will check unexpired stock and select the earliest-expiring eligible lots.}{Can every sale line be fulfilled?}{System will create the GIN and sales invoice and acknowledge the sale.}{System will reject the event and return the exact stock reason.}
+
+\clearpage
+\subsubsection*{UC-06. Perform a physical count and correct stock}
+\textbf{Actors:} Pharmacy Technician, Pharmacist / Manager.
+
+\textbf{Requirements:} F3, F6, F8.
+
+\textbf{Basic course of events}
+\begin{enumerate}
+\item The technician selects a product and lot and enters the physical count.
+\item The system will display the calculated stock and physical count.
+\item The technician confirms a difference and enters a reason.
+\item The Pharmacist / Manager approves or rejects the requested correction.
+\item On approval, the system will record the correction and audit entry and will update the stock view.
+\end{enumerate}
+
+\textbf{Counts match.} The system will record the completed count and create no correction request.
+
+\compactactivity{UC-06}{Technician enters and confirms a physical count.}{System will compare it with calculated stock and obtain a manager decision for a difference.}{Does the approved count differ from calculated stock?}{System will record the correction and audit entry.}{System will record the count without changing stock.}
+
+\clearpage
+\subsubsection*{UC-07. Manage expiration and stock removal}
+\textbf{Actors:} Pharmacy Technician, Pharmacist / Manager, Daily Scheduler.
+
+\textbf{Requirements:} F9, F10, F11, F15.
+
+\textbf{Basic course of events}
+\begin{enumerate}
+\item Each day, the system will classify lots as expired or expiring within 30, 60 or 90 days and will create the corresponding alerts.
+\item Staff open an alert and view the affected product, lot, expiration date, quantity and use-first recommendation.
+\item Staff record the quantity disposed of or returned to the supplier and the reason.
+\item The system will create the applicable GIN, update stock and record the lost value.
+\end{enumerate}
+
+\textbf{Invalid removal quantity.} The system will reject a quantity greater than the current lot stock and create no GIN.
+
+\compactactivity{UC-07}{Scheduler creates expiration alerts; staff record disposal or supplier return.}{System will check the requested removal against current lot stock.}{Is the removal quantity available?}{System will create the GIN, update stock and record lost value.}{System will reject the quantity and create no GIN.}
+
+\clearpage
+\subsubsection*{UC-08. Reorder stock and track the purchase order}
+\textbf{Actors:} Pharmacist / Manager, Supplier System.
+
+\textbf{Requirements:} F12, F13, F14, F18.
+
+\textbf{Basic course of events}
+\begin{enumerate}
+\item When stock reaches the product's reorder point, the system will create an alert and draft purchase order.
+\item The Pharmacist / Manager checks the supplier, products, quantities and prices and approves the order.
+\item The system will send the approved purchase order to the supplier and record it as Sent.
+\item The system will derive Partially Received or Received from the quantities on GRNs linked to the purchase order.
+\end{enumerate}
+
+\textbf{Order rejected.} The system will record the rejection and send nothing to the supplier.
+
+\textbf{Supplier cancels an undelivered remainder.} The Pharmacist / Manager records the cancelled quantity and supplier reference. The system will close that remainder without generating a GRN or increasing stock.
+
+\compactactivity{UC-08}{System will prepare a draft purchase order; manager submits a decision.}{System will validate the order and the manager's authority.}{Does the manager approve the order?}{System will send the order and track it through receipt.}{System will record the rejection and send nothing.}
+
+\clearpage
+\subsubsection*{UC-09. Assess forecasts, warnings and reorder recommendations}
+\textbf{Actors:} Pharmacist / Manager.
+
+\textbf{Requirements:} F15, F16, F17, F18.
+
+\textbf{Basic course of events}
+\begin{enumerate}
+\item The Pharmacist / Manager selects a product and a 7, 30 or 90 day forecast horizon.
+\item The system will display the forecast, expiration-risk or unusual-activity warning, recommended reorder point and order quantity, and the reason for each result.
+\item The Pharmacist / Manager accepts, changes or rejects the recommendation.
+\item The system will record the decision. An accepted or changed recommendation will create a draft purchase order; a rejected recommendation will create no order.
+\end{enumerate}
+
+\textbf{Insufficient sales history.} The system will identify the missing history and label the result as a rule-based estimate rather than a model forecast.
+
+\compactactivity{UC-09}{Manager requests a forecast and submits a recommendation decision.}{System will calculate or retrieves the result and display its explanation.}{Is sufficient sales history available?}{System will display the model forecast and record the manager's decision.}{System will display a labeled rule-based estimate and record the decision.}
+
+\clearpage
+\subsubsection*{UC-10. Search for a medication}
+\textbf{Actors:} Customer.
+
+\textbf{Requirements:} F19, F20, F22, F23.
+
+\textbf{Basic course of events}
+\begin{enumerate}
+\item The customer searches by brand name, generic name or NDC.
+\item The system will display matching products, generic alternatives and retail cash prices with the insurance-price notice.
+\item For each product other than a Schedule II product, the system will display In Stock, Low Stock or Out of Stock without an exact quantity.
+\end{enumerate}
+
+\textbf{Schedule II product.} The system will hide availability and will display Contact pharmacy for availability.
+
+\textbf{No match.} The system will display that no product matches the submitted search value.
+
+\compactactivity{UC-10}{Customer submits a brand name, generic name or NDC.}{System will find active matching products and check their controlled-substance class.}{Is a result outside Schedule II?}{System will display safe availability, price and generic alternatives.}{System will hide availability and display the contact-pharmacy message.}
+
+\clearpage
+\subsubsection*{UC-11. Find a nearby pharmacy}
+\textbf{Actors:} Customer.
+
+\textbf{Requirements:} F21.
+
+\textbf{Basic course of events}
+\begin{enumerate}
+\item The customer selects a product and either permits device-location use or enters a ZIP code.
+\item The system will temporarily determine the customer's origin and will find participating pharmacies where the product is in stock.
+\item The system will display the pharmacies in increasing distance order and provide an external directions link.
+\item The system will discard the customer's location after producing the result.
+\end{enumerate}
+
+\textbf{Location unavailable or ZIP invalid.} The system will identify the location error and display no distance-ranked list.
+
+\compactactivity{UC-11}{Customer consents to device location or enters a ZIP code.}{System will resolve the temporary origin and search participating pharmacies.}{Can the system resolve the origin?}{System will display the distance-sorted list and directions links, then discard the origin.}{System will identify the location error and display no ranked list.}
+
+\clearpage
+\subsubsection*{UC-12. Register and request a back-in-stock notice}
+\textbf{Actors:} Customer.
+
+\textbf{Requirements:} F2, F23.
+
+\textbf{Basic course of events}
+\begin{enumerate}
+\item The customer registers with a unique email address and password and verifies the email address.
+\item The customer selects an out-of-stock product and pharmacy and requests a notice.
+\item The system will record the subscription.
+\item When the product becomes available at that pharmacy, the system will send one notice and complete the subscription.
+\end{enumerate}
+
+\textbf{Existing subscription.} The system will report that the notice is already active and create no duplicate.
+
+\compactactivity{UC-12}{Registered customer requests a notice for a product and pharmacy.}{System will check the account and search for an active matching subscription.}{Is this a new valid subscription?}{System will record it and send one notice when stock becomes available.}{System will report the existing or invalid subscription and create no duplicate.}
+
+\clearpage
+\subsubsection*{UC-13. View the dashboard and produce a report}
+\textbf{Actors:} Pharmacy Technician, Pharmacist / Manager.
+
+\textbf{Requirements:} F7, F9, F13, F15, F24, F25.
+
+\textbf{Basic course of events}
+\begin{enumerate}
+\item Staff open the pharmacy dashboard.
+\item The system will display current low-stock items, expiring items, pending purchase orders and AI warnings for that pharmacy.
+\item Staff select a report type, date range and export format.
+\item The system will generate and export the inventory-value, stock-movement, expiration-loss or forecast-accuracy report.
+\end{enumerate}
+
+\textbf{Invalid report request.} The system will identify an unsupported report type, date range or format and generate no export.
+
+\compactactivity{UC-13}{Staff open the dashboard and submit a report request.}{System will load pharmacy-scoped data and validate the report parameters.}{Are the report parameters valid?}{System will display the dashboard and produce the export.}{System will identify the invalid parameter and produce no export.}
+
+\clearpage
+\subsubsection*{UC-14. Synchronize transactions after an outage}
+\textbf{Actors:} Store Application, Central Server.
+
+\textbf{Requirements:} Reliability requirement.
+
+\textbf{Basic course of events}
+\begin{enumerate}
+\item During an internet outage, the store application will save each permitted transaction locally with a unique event identifier and will display it as pending synchronization.
+\item After connectivity returns, the store application will send pending transactions to the central server in creation order.
+\item The central server will record each event identifier and apply each transaction once.
+\item The store application will mark every acknowledged transaction as synchronized and refresh the displayed data.
+\end{enumerate}
+
+\textbf{Previously processed event.} The server will return the existing result and does not apply the transaction again.
+
+\textbf{Conflicting event.} The server will reject the event with the current record version and the store application will display the transaction requiring staff action.
+
+\compactactivity{UC-14}{Store application will send a queued transaction with its unique event identifier.}{Central server will check the identifier and record version.}{Can the event be applied once without a version conflict?}{Server will apply and acknowledge it; store will mark it synchronized.}{Server will return the existing result or an explicit conflict without duplicating the effect.}
+
+\clearpage
+\subsubsection*{UC-15. Ask the inventory assistant}
+\textbf{Actors:} Pharmacy Technician, Pharmacist / Manager.
+
+\textbf{Requirements:} F15, F18.
+
+\textbf{Basic course of events}
+\begin{enumerate}
+\item Staff ask a question about a displayed inventory warning or recommendation.
+\item The system will retrieve the pharmacy-scoped inventory data and explanation supporting that warning or recommendation.
+\item The assistant will answer using those values and identify the data used.
+\item The system will make no inventory change and create no purchase order from the answer.
+\end{enumerate}
+
+\textbf{Unsupported or medical question.} The assistant will state that it cannot provide the requested answer and make no change.
+
+\compactactivity{UC-15}{Staff ask about an inventory warning or recommendation.}{System will check the question's scope and retrieve pharmacy-scoped supporting data.}{Is the question an inventory question supported by available data?}{Assistant will answer with the supporting values and make no change.}{Assistant will decline the unsupported question and make no change.}
