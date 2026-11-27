@@ -1,5 +1,8 @@
 % Compile from docs/latex with XeLaTeX. Shared formatting: common.tex.
 \input{common.tex}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric}
+\usepackage{pdflscape}
 
 \begin{document}
 
@@ -64,7 +67,7 @@ The system will cover inventory management operations for participating pharmaci
 
 The system will support inventory updates based on sales recorded at the pharmacy\textquotesingle s point-of-sale system. Inventory decisions involving stock adjustments and purchase orders will remain subject to approval by authorized pharmacy personnel.
 
-Inventory is tracked by pharmacy, product, and lot. Staff enter delivery counts by hand. Barcode scanning, separate stock balances for warehouses or rooms within a pharmacy, and stock transfers between locations are outside the project scope. The customer portal provides a distance-sorted list of pharmacies; an embedded map is deferred.
+Inventory will be tracked by pharmacy, product, and lot. Staff will enter delivery counts by hand. Barcode scanning, separate stock balances for warehouses or rooms within a pharmacy, and stock transfers between locations are outside the project scope. The customer portal will provide a distance-sorted list of pharmacies; an embedded map will be deferred.
 
 Also out of scope for this version are prescription dispensing and e-prescribing, insurance claim processing, online payment, home delivery, and any medical or dosing advice.
 
@@ -130,8 +133,8 @@ The system will distinguish between staff roles, customers, and system administr
 
 \caption*{Table 2.1.1. Roles of users of the system and their responsibilities}\\
 \endlastfoot
-Pharmacist / Manager & Authorized pharmacy personnel responsible for overseeing inventory operations and approving stock adjustments and purchase orders. & Review inventory records, verify physical stock against recorded quantities, approve stock adjustments and reorder requests, review AI-generated recommendations, and view reports. \\ \hline
-Pharmacy Technician & Staff member supporting daily operations. & Receive stock, perform physical inventory counts, and record discrepancies for review; cannot approve stock adjustments or reorder requests. \\ \hline
+Pharmacist / Manager & Authorized pharmacy personnel responsible for overseeing inventory operations and approving stock adjustments and purchase orders. & Resolve differences between physical stock, GRNs and purchase invoices; approve stock adjustments and reorder requests; assess AI-generated recommendations; and view reports. \\ \hline
+Pharmacy Technician & Staff member supporting daily operations. & Receive stock, perform physical inventory counts, and record whether each delivery matches its GRN; cannot approve stock adjustments or reorder requests. \\ \hline
 Customer & Member of the public, with or without an account. & Search products, view availability and price, find nearest pharmacy, receive back-in-stock alerts (for registered users). \\ \hline
 System Administrator & IT staff managing the platform. & Manage users, stores, integrations, settings, view and review audit logs. \\ \hline
 \end{longtable}
@@ -217,8 +220,8 @@ Scalability & Support at least 100 pharmacies, 20,000 products per store, and 1,
 Availability & 99.5\% uptime, with maintenance scheduled outside business hours; daily backups with recovery within 4 hours. \\ \hline
 Security & Encrypt all data in transit and at rest, store passwords securely (hashed), and test against common web vulnerabilities. \\ \hline
 Privacy \& Compliance & Meet Health Insurance Portability and Accountability Act (HIPAA) safeguards, keep Drug Supply Chain Security Act (DSCSA) lot traceability records, and use customer location only with consent and never store it. \\ \hline
-Usability & Common staff tasks take no more than 3 clicks from the dashboard; the customer portal meets Web Content Accessibility Guidelines (WCAG) 2.1 AA accessibility. \\ \hline
-Reliability & The store application queues transactions during an internet outage and syncs when reconnected. \\ \hline
+Usability & Common staff tasks will take no more than 3 clicks from the dashboard; the customer portal will meet Web Content Accessibility Guidelines (WCAG) 2.1 AA accessibility. \\ \hline
+Reliability & The store application will queue transactions during an internet outage and will synchronize them after reconnection. \\ \hline
 AI Quality & Demand forecasts target a Mean Absolute Percentage Error (MAPE) of 20\% or less for products with at least 6 months of sales history. \\ \hline
 Maintainability & Modular design with documented APIs and at least 70\% automated test coverage. \\ \hline
 \end{longtable}
@@ -249,11 +252,11 @@ Maintainability & Modular design with documented APIs and at least 70\% automate
 \textbf{User Management and Security}} \\ \hline
 F1 & Staff sign-in and roles & Staff members will sign in with a correct username, the respective correct password for that username, and a second proof of identity, such as a one-time code. Each person then will only see the screens and actions their role allows (Section 2). The System Administrator will create staff member accounts and assign them roles. \\ \hline
 F2 & Customer access and accounts & Customers will be able to search and view results without creating an account. A customer who chooses to register will gain extra features, such as back-in-stock notices (F23). \\ \hline
-F3 & Record of changes (audit log) & Record who changed inventory, when and why. For an approved correction to a goods received note (GRN), the system will retain the line identifier, old and new quantities, reason code and the explanation. Purchase and sales invoices will record charges; they will not affect stock. \\ \hline
+F3 & Record of changes (audit log) & The system will record who created each inventory document, when and why. GRNs will not be edited after creation. The system will retain the technician's physical entries, each named delivery discrepancy, the Pharmacist / Manager's confirmation and explanation, and the GRN generated from that decision. Purchase and sales invoices will record charges; they will not affect stock. \\ \hline
 \multicolumn{3}{|>{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep) * \real{1.0000} + 4\tabcolsep}|}{%
 \textbf{Inventory Management}} \\ \hline
 F4 & Product records & Staff members will be able to add a product, change its details, or deactivate it. Each product will have a name, National Drug Code (NDC), strength, dosage form, category, and price. \\ \hline
-F5 & Receiving stock & Technicians will only be able to open their own pharmacy's GRNs. For each GRN line, they will count the delivered units of the listed product and lot and enter that count. The system record a quantity difference or an unexpected item for review. A subsequent delivery will receive its own GRN and may reference the same purchase invoice. \\ \hline
+F5 & Receiving stock & Technicians will only be able to inspect deliveries for their own pharmacy's purchase orders. They will enter each delivered package's NDC, lot number, expiration date and physical count. The system will compare the physical delivery with the purchase order and linked purchase invoice. It will record the delivery as correct or record a named discrepancy for an extra product, missing product, expired product or quantity difference. After the check, the system will generate an immutable GRN containing the quantities the pharmacy keeps. Each later delivery will generate another GRN linked to the same purchase order and purchase invoice. \\ \hline
 F6 & Sales and stock corrections & Each sale recorded at the pharmacy's point-of-sale system (the checkout) will reduce stock on hand automatically. Staff will also be able to correct a quantity by hand and in doing so must select a reason. Manual corrections will take effect only when a Pharmacist/Manager approves them (Section 2). \\ \hline
 F7 & Stock on hand & For each pharmacy, product and lot, calculate on-hand units from the sum of GRN line quantities minus the sum of goods issue note (GIN) line quantities. Staff can search and filter lot balances. Changes appear within five seconds. \\ \hline
 F8 & Physical counts & During a physical count (cycle count), staff members will enter the quantity they counted. The system will compare it with the recorded quantity and flag any difference for a Pharmacist/Manager to review. \\ \hline
@@ -266,7 +269,7 @@ F11 & Use-first advice and disposal records & When a product has more than one l
 \textbf{Reordering and Suppliers}} \\ \hline
 F12 & Supplier records and reorder points & Staff members will keep a record for each supplier (contact details, delivery lead time, minimum order, prices) and set a reorder point for each product: the stock level at which more should be ordered. \\ \hline
 F13 & Reorder alerts and draft orders & When a product's stock falls to its reorder point, the system will alert staff members and prepare a draft purchase order. A draft will go no further until a Pharmacist/Manager approves it. \\ \hline
-F14 & Sending and tracking orders & An approved order will be sent to the supplier. Staff members will be able to follow each order's status from Draft through to Received. When the delivery arrives, the system will flag any difference between what was ordered and what was received. \\ \hline
+F14 & Sending and tracking orders & An approved purchase order will be sent to the supplier. Staff members will be able to follow its status from Draft through Approved, Sent, Partially Received and Received. The system will derive the received quantity from GRNs linked to the purchase order and flag each difference between the order, purchase invoice and physical delivery. \\ \hline
 F15 & Expiration-risk and unusual-activity warnings & The system will point out lots that are likely to expire before they are sold and inventory activity that looks unusual. Each warning or recommendation will come with an explanation of why it was raised. \\ \hline
 \multicolumn{3}{|>{\raggedright\arraybackslash}m{(\linewidth - 4\tabcolsep) * \real{1.0000} + 4\tabcolsep}|}{%
 \textbf{AI Chatbot and Machine Learning Analytics}} \\ \hline
@@ -289,6 +292,110 @@ F25 & Reports & Staff will be able to produce reports on inventory value, stock 
 
 \subsection{4.1. Use cases}\label{use-cases}
 
+\clearpage
+\begin{landscape}
+\subsubsection*{Use-case diagram}
+\newcommand{\umlactor}[3]{%
+  \begin{scope}[shift={(#1,#2)}]
+    \draw (0,.55) circle (.16);
+    \draw (0,.39) -- (0,-.18);
+    \draw (-.32,.18) -- (.32,.18);
+    \draw (0,-.18) -- (-.28,-.55);
+    \draw (0,-.18) -- (.28,-.55);
+    \node[align=center,font=\scriptsize] at (0,-.9) {#3};
+  \end{scope}}
+\newcommand{\umlactorleft}[3]{%
+  \begin{scope}[shift={(#1,#2)}]
+    \draw (0,.22) circle (.1);
+    \draw (0,.12) -- (0,-.2);
+    \draw (-.2,0) -- (.2,0);
+    \draw (0,-.2) -- (-.18,-.42);
+    \draw (0,-.2) -- (.18,-.42);
+    \node[anchor=east,align=right,font=\scriptsize] at (-.32,-.05) {#3};
+  \end{scope}}
+\newcommand{\umlactorright}[3]{%
+  \begin{scope}[shift={(#1,#2)}]
+    \draw (0,.22) circle (.1);
+    \draw (0,.12) -- (0,-.2);
+    \draw (-.2,0) -- (.2,0);
+    \draw (0,-.2) -- (-.18,-.42);
+    \draw (0,-.2) -- (.18,-.42);
+    \node[anchor=west,align=left,font=\scriptsize] at (.32,-.05) {#3};
+  \end{scope}}
+\begin{center}
+\begin{tikzpicture}[font=\scriptsize,
+ usecase/.style={draw,ellipse,align=center,text width=4.5cm,minimum height=.75cm,inner sep=2pt}]
+\draw (-4.7,-5.65) rectangle (4.7,5.65);
+\node[anchor=north west,font=\small\bfseries] at (-4.55,5.5) {Staff operations};
+\node[anchor=north east,font=\scriptsize\itshape] at (4.55,5.5) {Repeated symbols denote the same actor role.};
+
+\node[usecase] (uc01) at (0,4.45) {UC-01 Receive stock};
+\node[usecase] (uc02) at (0,3.45) {UC-02 Staff sign in};
+\node[usecase] (uc03) at (0,2.45) {UC-03 Staff accounts and roles};
+\node[usecase] (uc04) at (0,1.45) {UC-04 Product, supplier and reorder settings};
+\node[usecase] (uc06) at (0,.45) {UC-06 Physical count and stock correction};
+\node[usecase] (uc07) at (0,-.55) {UC-07 Expiration and stock removal};
+\node[usecase] (uc08) at (0,-1.55) {UC-08 Reorder and track purchase order};
+\node[usecase] (uc09) at (0,-2.55) {UC-09 Forecasts and recommendations};
+\node[usecase] (uc13) at (0,-3.55) {UC-13 Dashboard and reports};
+\node[usecase] (uc15) at (0,-4.55) {UC-15 Inventory assistant};
+
+\umlactorleft{-6.2}{4.45}{Pharmacy Technician}
+\umlactorright{6.2}{4.45}{Pharmacist / Manager}
+\umlactorleft{-6.2}{3.45}{Staff Member}
+\umlactorleft{-6.2}{2.45}{System Administrator}
+\umlactorleft{-6.2}{1.45}{Pharmacist / Manager}
+\umlactorleft{-6.2}{.45}{Pharmacy Technician}
+\umlactorright{6.2}{.45}{Pharmacist / Manager}
+\umlactorleft{-6.2}{-.55}{Pharmacy Technician}
+\umlactorright{6.2}{-.55}{Pharmacist / Manager}
+\umlactorleft{-6.2}{-1.55}{Pharmacist / Manager}
+\umlactorleft{-6.2}{-2.55}{Pharmacist / Manager}
+\umlactorleft{-6.2}{-3.55}{Staff Member}
+\umlactorleft{-6.2}{-4.55}{Staff Member}
+
+\foreach \target/\yy in {uc01/4.45,uc02/3.45,uc03/2.45,uc04/1.45,uc06/.45,uc07/-.55,uc08/-1.55,uc09/-2.55,uc13/-3.55,uc15/-4.55} \draw (-5.98,\yy) -- (\target.west);
+\foreach \target/\yy in {uc01/4.45,uc06/.45,uc07/-.55} \draw (5.98,\yy) -- (\target.east);
+\end{tikzpicture}
+\end{center}
+
+\clearpage
+\subsubsection*{External use-case diagram}
+\begin{center}
+\begin{tikzpicture}[font=\scriptsize,
+ usecase/.style={draw,ellipse,align=center,text width=3.6cm,minimum height=1cm,inner sep=2pt}]
+\draw (-8.7,-5.7) rectangle (8.7,5.7);
+\node[anchor=north west,font=\small\bfseries] at (-8.55,5.55) {Customer and external integrations};
+
+\node[usecase] (uc10) at (-4.5,3.5) {UC-10 Search medication};
+\node[usecase] (uc11) at (-4.5,0) {UC-11 Find nearby pharmacy};
+\node[usecase] (uc12) at (-4.5,-3.5) {UC-12 Register and request notice};
+
+\node[usecase] (uc05) at (3.5,4) {UC-05 Record POS sale};
+\node[usecase] (uc08) at (3.5,1.5) {UC-08 Reorder and track purchase order};
+\node[usecase] (uc07) at (3.5,-1) {UC-07 Expiration and stock removal};
+\node[usecase] (uc14) at (3.5,-4) {UC-14 Synchronize after outage};
+
+\umlactor{-10.2}{0}{Customer}
+\umlactor{10.2}{4}{Point-of-Sale\\System}
+\umlactor{10.2}{1.5}{Supplier System}
+\umlactor{10.2}{-1}{}
+\node[align=center,font=\scriptsize] at (10.2,-1.9) {Daily Scheduler};
+\umlactor{10.2}{-3.4}{Store Application}
+\umlactor{10.2}{-5.1}{Central Server}
+
+\foreach \target in {uc10,uc11,uc12} \draw (-9.55,0) -- (\target);
+\draw (9.55,4) -- (uc05);
+\draw (9.55,1.5) -- (uc08);
+\draw (9.55,-1) -- (uc07);
+\draw (9.55,-3.4) -- (uc14);
+\draw (9.55,-5.1) -- (uc14);
+\end{tikzpicture}
+\end{center}
+\end{landscape}
+
+\clearpage
+
 \subsubsection*{UC-01. Receive stock}
 \textbf{Actors:} Pharmacy Technician, Pharmacist / Manager.
 
@@ -296,65 +403,94 @@ F25 & Reports & Staff will be able to produce reports on inventory value, stock 
 
 \textbf{Receive stock: basic course of events}
 \begin{enumerate}
-\item The technician opens the delivery's GRN.
-\item The system displays the supplier and each line's product, lot number, expiration date and recorded quantity.
-\item The technician manually enters the NDC, lot number and expiration date printed on the package, counts the units from that lot and enters the quantity.
-\item The system finds the GRN line for the entered product and lot, compares the expiration date and quantity with that line, and asks the technician to confirm when both match.
-\item The technician confirms the count.
-\item The system records who verified the line and when, and displays the confirmation.
+\item The technician opens the purchase order for the delivery.
+\item The system will display the ordered products and quantities and the linked purchase invoice.
+\item The technician enters each delivered package's NDC, lot number, expiration date and physical count.
+\item The system will compare the entries with the purchase order and purchase invoice.
+\item The technician confirms that all displayed values match.
+\item The system will record a correct delivery, generate a GRN containing the confirmed physical quantities, link it to the purchase order and purchase invoice, and update stock.
 \end{enumerate}
 
-\textbf{Receive stock -- unexpected product or lot}
+\textbf{Receive stock -- extra product}
 \begin{enumerate}
-\item The technician opens the delivery's GRN.
-\item The system displays the supplier and each line's product, lot number, expiration date and recorded quantity.
-\item The technician manually enters the NDC, lot number and expiration date printed on the package, counts the units from that lot and enters the quantity.
-\item If no GRN line matches the entered NDC and lot number, the system records the item separately for review.
+\item The technician opens the purchase order for the delivery.
+\item The system will display the ordered products and quantities and the linked purchase invoice.
+\item The technician selects Record unlisted package and enters the NDC, lot number, expiration date and physical count printed on or counted from the delivered package.
+\item The system will find no purchase-order line containing the entered NDC and display The purchase order does not list this product, together with Edit entry and Confirm extra product actions.
+\item The technician selects Confirm extra product.
+\item The system will record an extra-product discrepancy and an incorrect delivery.
 \end{enumerate}
 
-\textbf{Receive stock -- expiration date differs from GRN}
+\textbf{Receive stock -- missing product or lot}
 \begin{enumerate}
-\item The technician opens the delivery's GRN.
-\item The system displays the supplier and each line's product, lot number, expiration date and recorded quantity.
-\item The technician manually enters the NDC, lot number and expiration date printed on the package, counts the units from that lot and enters the quantity.
-\item The system finds the GRN line with the same NDC and lot number. If the entered expiration date differs from the recorded date, the system displays both dates and leaves the line unverified for the Pharmacist / Manager to review.
+\item The technician opens the purchase order for the delivery.
+\item The system will display the ordered products and quantities and the linked purchase invoice.
+\item The technician selects the expected product and lot that were not delivered and enters a physical count of zero.
+\item The system will display the ordered quantity and entered physical count of zero, together with Edit count and Confirm zero actions.
+\item The technician selects Confirm zero.
+\item The system will record a missing-product-or-lot discrepancy and an incorrect delivery.
 \end{enumerate}
 
-\textbf{Receive stock -- count differs from GRN}
+\textbf{Receive stock -- delivered product is expired}
 \begin{enumerate}
-\item The technician opens the delivery's GRN.
-\item The system displays the supplier and each line's product, lot number, expiration date and recorded quantity.
-\item The technician manually enters the NDC, lot number and expiration date printed on the package, counts the units from that lot and enters the quantity.
-\item The system displays the GRN quantity and the entered count and prompts for a recount. This includes a count of zero when the GRN quantity is positive.
-\item The technician recounts the units and confirms the physical count.
-\item If the recount matches the GRN quantity, the system records the verification. If the counts still differ, the system records both values and opens a discrepancy for the Pharmacist / Manager.
-\item The Pharmacist / Manager opens the discrepancy.
-\item The system displays the GRN line, the confirmed count and the linked purchase documents. When the Pharmacist / Manager selects a resolution, the system displays its effect on stock before approval.
+\item The technician opens the purchase order for the delivery.
+\item The system will display the ordered products and quantities and the linked purchase invoice.
+\item The technician enters the NDC, lot number, expiration date and physical count printed on or counted from the delivered package.
+\item The system will determine that the entered expiration date is before the delivery date and will display Edit entry and Confirm expired product actions.
+\item The technician selects Confirm expired product.
+\item The system will record an expired-product discrepancy and an incorrect delivery.
 \end{enumerate}
 
-\textbf{Review outcomes}
-\begin{itemize}
-\item \textbf{GRN quantity confirmed.} If a further count establishes that the GRN quantity was correct, the Pharmacist / Manager records the count. The system closes the discrepancy and retains the existing GRN quantity.
-\item \textbf{Part of the order is still due.} The Pharmacist / Manager approves correcting the original GRN line to the quantity received. The system saves the correction and keeps the outstanding quantity open. For a later delivery, the technician records a new GRN linked to the same purchase invoice and discrepancy. The system includes the new receipt in stock and closes the discrepancy when the outstanding quantity is accounted for. If the supplier agrees to a credit or cancellation for the remaining units, the Pharmacist / Manager records the agreement and the system closes the discrepancy without posting another receipt.
-\item \textbf{Incorrect GRN quantity.} If the order and invoice confirm that the quantity purchased equals the quantity received, the Pharmacist / Manager records the reason and approves correcting the original GRN line. The system saves the corrected quantity and closes the discrepancy.
-\end{itemize}
-For each approved correction, the system records the old and new quantities, reason code, explanation, approving staff member and time. The inventory view reflects the corrected GRN within five seconds. If the Pharmacist / Manager cannot establish the cause, the system keeps the discrepancy open.
-
-\textbf{Receive stock -- count left blank}
+\textbf{Receive stock -- technician confirms a quantity difference}
 \begin{enumerate}
-\item The technician opens the delivery's GRN.
-\item The system displays the supplier and each line's product, lot number, expiration date and recorded quantity.
-\item The technician leaves the count field blank for a GRN line.
-\item The system leaves the line unchecked.
+\item The technician opens the purchase order for the delivery.
+\item The system will display the ordered products and quantities and the linked purchase invoice.
+\item The technician enters a positive physical count that differs from the expected quantity.
+\item The system will display the expected quantity and physical count, together with Edit count and Confirm entered count actions.
+\item The technician recounts the units. The technician may select Edit count, enter another physical count and recount again any number of times.
+\item The technician selects Confirm entered count while the physical count differs from the expected quantity.
+\item The system will record a quantity discrepancy and an incorrect delivery.
 \end{enumerate}
 
-\textbf{Receive stock -- negative count}
-\begin{enumerate}
-\item The technician opens the delivery's GRN.
-\item The system displays the supplier and each line's product, lot number, expiration date and recorded quantity.
-\item The technician selects a line and enters a negative count.
-\item The system displays a validation error and does not record the count.
-\end{enumerate}
+\textbf{Completion of an incorrect delivery.} The Pharmacist / Manager confirms the physical quantities of ordered, unexpired products that the pharmacy will keep and enters an explanation. Extra and expired products will be returned to the supplier and excluded from the GRN. The system will generate one GRN containing the confirmed kept quantities, link it to the purchase order and purchase invoice, update stock, and derive the purchase-order status from the total quantities on its linked GRNs. A later delivery will generate another GRN linked to the same purchase order and purchase invoice.
+
+\clearpage
+\subsubsection*{UC-01 activity diagram. Receive stock}
+\begin{center}
+\begin{tikzpicture}[font=\footnotesize,>=stealth,
+ action/.style={draw,rounded corners,align=center,text width=8cm,inner sep=5pt},
+ branch/.style={draw,rounded corners,align=center,text width=4cm,inner sep=4pt}]
+\fill (0,0) circle (3pt);
+\node[action] (open) at (0,-1) {Technician opens the purchase order.\\System will display the order and linked purchase invoice.};
+\node[action] (enter) at (0,-2.6) {Technician enters each delivered package's NDC, lot number, expiration date and physical count.};
+\draw[->] (0,0) -- (open);
+\draw[->] (open) -- (enter);
+\foreach \id/\yy/\sideguard/\test/\result in {
+ a/-4.4/no/Does the purchase order contain the entered NDC?/{System will record an extra-product discrepancy and an incorrect delivery.},
+ b/-6.5/yes/Is the confirmed count zero while the ordered quantity is greater than zero?/{System will record a missing-product discrepancy and an incorrect delivery.},
+ c/-8.6/yes/Is the entered expiration date before the delivery date?/{System will record an expired-product discrepancy and an incorrect delivery.},
+ d/-10.7/no/Does the positive physical count equal the expected quantity?/{System will permit repeated edits. A confirmed difference will record a quantity discrepancy and an incorrect delivery.}}
+ {
+ \draw (0,\yy) ++(0,.28) -- ++(.4,-.28) -- ++(-.4,-.28) -- ++(-.4,.28) -- cycle;
+ \node[anchor=east,align=right,text width=6.2cm] at (-.45,\yy) {\test};
+ \node[branch] (\id) at (4.5,\yy) {\result};
+ \node[circle,draw,minimum size=9pt,inner sep=0pt] (end\id) at (7,\yy) {};
+ \fill (end\id.center) circle (2.3pt);
+ \draw[->] (.4,\yy) -- node[above]{\sideguard} (\id);
+ \draw[->] (\id) -- (end\id);
+ }
+\draw[->] (enter) -- (0,-4.12);
+\foreach \start/\finish/\guard in {-4.68/-6.22/yes,-6.78/-8.32/no,-8.88/-10.42/no}
+ \draw[->] (0,\start) -- node[left]{\guard} (0,\finish);
+\node[action] (verify) at (0,-13) {System will record a correct delivery, generate the GRN and update stock.};
+\node[circle,draw,minimum size=9pt,inner sep=0pt] (correctend) at (0,-14.2) {};
+\fill (correctend.center) circle (2.3pt);
+\draw[->] (0,-10.98) -- node[left]{yes} (verify);
+\draw[->] (verify) -- (correctend);
+\end{tikzpicture}
+\end{center}
+
+\input{use-cases.tex}
 
 \clearpage
 \section{5. Programmed Meetings}\label{programmed-meetings}
