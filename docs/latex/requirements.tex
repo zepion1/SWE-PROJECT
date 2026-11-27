@@ -2,7 +2,6 @@
 \input{common.tex}
 \usepackage{tikz}
 \usetikzlibrary{shapes.geometric}
-\usepackage{pdflscape}
 
 \begin{document}
 
@@ -293,7 +292,6 @@ F25 & Reports & Staff will be able to produce reports on inventory value, stock 
 \subsection{4.1. Use cases}\label{use-cases}
 
 \clearpage
-\begin{landscape}
 \subsubsection*{Use-case diagram}
 \newcommand{\umlactor}[3]{%
   \begin{scope}[shift={(#1,#2)}]
@@ -304,58 +302,32 @@ F25 & Reports & Staff will be able to produce reports on inventory value, stock 
     \draw (0,-.18) -- (.28,-.55);
     \node[align=center,font=\scriptsize] at (0,-.9) {#3};
   \end{scope}}
-\newcommand{\umlactorleft}[3]{%
-  \begin{scope}[shift={(#1,#2)}]
-    \draw (0,.22) circle (.1);
-    \draw (0,.12) -- (0,-.2);
-    \draw (-.2,0) -- (.2,0);
-    \draw (0,-.2) -- (-.18,-.42);
-    \draw (0,-.2) -- (.18,-.42);
-    \node[anchor=east,align=right,font=\scriptsize] at (-.32,-.05) {#3};
-  \end{scope}}
-\newcommand{\umlactorright}[3]{%
-  \begin{scope}[shift={(#1,#2)}]
-    \draw (0,.22) circle (.1);
-    \draw (0,.12) -- (0,-.2);
-    \draw (-.2,0) -- (.2,0);
-    \draw (0,-.2) -- (-.18,-.42);
-    \draw (0,-.2) -- (.18,-.42);
-    \node[anchor=west,align=left,font=\scriptsize] at (.32,-.05) {#3};
-  \end{scope}}
 \begin{center}
 \begin{tikzpicture}[font=\scriptsize,
- usecase/.style={draw,ellipse,align=center,text width=4.5cm,minimum height=.75cm,inner sep=2pt}]
-\draw (-4.7,-5.65) rectangle (4.7,5.65);
-\node[anchor=north west,font=\small\bfseries] at (-4.55,5.5) {Staff operations};
-\node[anchor=north east,font=\scriptsize\itshape] at (4.55,5.5) {Repeated symbols denote the same actor role.};
+ usecase/.style={draw,ellipse,align=center,text width=4.1cm,minimum height=.75cm,inner sep=2pt}]
+\draw (-3.5,-5.65) rectangle (3.5,5.65);
+\node[anchor=north west,font=\small\bfseries] at (-3.35,5.5) {Staff operations};
 
-\node[usecase] (uc01) at (0,4.45) {UC-01 Receive stock};
+\node[usecase] (uc03) at (0,4.45) {UC-03 Staff accounts and roles};
 \node[usecase] (uc02) at (0,3.45) {UC-02 Staff sign in};
-\node[usecase] (uc03) at (0,2.45) {UC-03 Staff accounts and roles};
-\node[usecase] (uc04) at (0,1.45) {UC-04 Product, supplier and reorder settings};
-\node[usecase] (uc06) at (0,.45) {UC-06 Physical count and stock correction};
-\node[usecase] (uc07) at (0,-.55) {UC-07 Expiration and stock removal};
-\node[usecase] (uc08) at (0,-1.55) {UC-08 Reorder and track purchase order};
-\node[usecase] (uc09) at (0,-2.55) {UC-09 Forecasts and recommendations};
+\node[usecase] (uc04) at (0,2.45) {UC-04 Product, supplier and reorder settings};
+\node[usecase] (uc08) at (0,1.45) {UC-08 Reorder and track purchase order};
+\node[usecase] (uc09) at (0,.45) {UC-09 Forecasts and recommendations};
+\node[usecase] (uc01) at (0,-.55) {UC-01 Receive stock};
+\node[usecase] (uc06) at (0,-1.55) {UC-06 Physical count and stock correction};
+\node[usecase] (uc07) at (0,-2.55) {UC-07 Expiration and stock removal};
 \node[usecase] (uc13) at (0,-3.55) {UC-13 Dashboard and reports};
 \node[usecase] (uc15) at (0,-4.55) {UC-15 Inventory assistant};
 
-\umlactorleft{-6.2}{4.45}{Pharmacy Technician}
-\umlactorright{6.2}{4.45}{Pharmacist / Manager}
-\umlactorleft{-6.2}{3.45}{Staff Member}
-\umlactorleft{-6.2}{2.45}{System Administrator}
-\umlactorleft{-6.2}{1.45}{Pharmacist / Manager}
-\umlactorleft{-6.2}{.45}{Pharmacy Technician}
-\umlactorright{6.2}{.45}{Pharmacist / Manager}
-\umlactorleft{-6.2}{-.55}{Pharmacy Technician}
-\umlactorright{6.2}{-.55}{Pharmacist / Manager}
-\umlactorleft{-6.2}{-1.55}{Pharmacist / Manager}
-\umlactorleft{-6.2}{-2.55}{Pharmacist / Manager}
-\umlactorleft{-6.2}{-3.55}{Staff Member}
-\umlactorleft{-6.2}{-4.55}{Staff Member}
+\umlactor{-6.15}{4.0}{System\\Administrator}
+\umlactor{-6.15}{-.4}{Pharmacist /\\Manager}
+\umlactor{6.15}{-1.7}{Pharmacy\\Technician}
 
-\foreach \target/\yy in {uc01/4.45,uc02/3.45,uc03/2.45,uc04/1.45,uc06/.45,uc07/-.55,uc08/-1.55,uc09/-2.55,uc13/-3.55,uc15/-4.55} \draw (-5.98,\yy) -- (\target.west);
-\foreach \target/\yy in {uc01/4.45,uc06/.45,uc07/-.55} \draw (5.98,\yy) -- (\target.east);
+\draw (-5.5,4.0) -- (-3.75,4.45) -- (uc03.west);
+\draw (-5.5,4.0) -- (-3.9,3.75) -- (uc02.north west);
+\draw (-5.5,-.4) -- (-3.65,3.15) -- (uc02.south west);
+\foreach \target/\yy in {uc04/2.45,uc08/1.45,uc09/.45,uc01/-.55,uc06/-1.55,uc07/-2.55,uc13/-3.55,uc15/-4.55} \draw (-5.5,-.4) -- (-3.75,\yy) -- (\target.west);
+\foreach \target/\yy in {uc02/3.45,uc01/-.55,uc06/-1.55,uc07/-2.55,uc13/-3.55,uc15/-4.55} \draw (5.5,-1.7) -- (3.75,\yy) -- (\target.east);
 \end{tikzpicture}
 \end{center}
 
@@ -363,36 +335,33 @@ F25 & Reports & Staff will be able to produce reports on inventory value, stock 
 \subsubsection*{External use-case diagram}
 \begin{center}
 \begin{tikzpicture}[font=\scriptsize,
- usecase/.style={draw,ellipse,align=center,text width=3.6cm,minimum height=1cm,inner sep=2pt}]
-\draw (-8.7,-5.7) rectangle (8.7,5.7);
-\node[anchor=north west,font=\small\bfseries] at (-8.55,5.55) {Customer and external integrations};
+ usecase/.style={draw,ellipse,align=center,text width=4.1cm,minimum height=.85cm,inner sep=2pt}]
+\draw (-3.5,-7.15) rectangle (3.5,4.85);
+\node[anchor=north west,font=\small\bfseries] at (-3.35,4.7) {Customer and external integrations};
 
-\node[usecase] (uc10) at (-4.5,3.5) {UC-10 Search medication};
-\node[usecase] (uc11) at (-4.5,0) {UC-11 Find nearby pharmacy};
-\node[usecase] (uc12) at (-4.5,-3.5) {UC-12 Register and request notice};
+\node[usecase] (uc10) at (0,3.7) {UC-10 Search medication};
+\node[usecase] (uc11) at (0,2.45) {UC-11 Find nearby pharmacy};
+\node[usecase] (uc12) at (0,1.2) {UC-12 Register and request notice};
+\node[usecase] (uc05) at (0,-.3) {UC-05 Record POS sale};
+\node[usecase] (uc08) at (0,-2.2) {UC-08 Reorder and track purchase order};
+\node[usecase] (uc07) at (0,-4.1) {UC-07 Expiration and stock removal};
+\node[usecase] (uc14) at (0,-6.0) {UC-14 Synchronize after outage};
 
-\node[usecase] (uc05) at (3.5,4) {UC-05 Record POS sale};
-\node[usecase] (uc08) at (3.5,1.5) {UC-08 Reorder and track purchase order};
-\node[usecase] (uc07) at (3.5,-1) {UC-07 Expiration and stock removal};
-\node[usecase] (uc14) at (3.5,-4) {UC-14 Synchronize after outage};
+\umlactor{-5.25}{2.45}{Customer}
+\umlactor{5.25}{-.3}{Point-of-Sale\\System}
+\umlactor{5.25}{-2.2}{Supplier System}
+\umlactor{5.25}{-4.1}{Daily Scheduler}
+\umlactor{-5.25}{-6.0}{Store Application}
+\umlactor{5.25}{-6.0}{Central Server}
 
-\umlactor{-10.2}{0}{Customer}
-\umlactor{10.2}{4}{Point-of-Sale\\System}
-\umlactor{10.2}{1.5}{Supplier System}
-\umlactor{10.2}{-1}{}
-\node[align=center,font=\scriptsize] at (10.2,-1.9) {Daily Scheduler};
-\umlactor{10.2}{-3.4}{Store Application}
-\umlactor{10.2}{-5.1}{Central Server}
-
-\foreach \target in {uc10,uc11,uc12} \draw (-9.55,0) -- (\target);
-\draw (9.55,4) -- (uc05);
-\draw (9.55,1.5) -- (uc08);
-\draw (9.55,-1) -- (uc07);
-\draw (9.55,-3.4) -- (uc14);
-\draw (9.55,-5.1) -- (uc14);
+\foreach \target/\yy in {uc10/3.7,uc11/2.45,uc12/1.2} \draw (-4.6,2.45) -- (-3.7,\yy) -- (\target.west);
+\draw (-4.6,-6.0) -- (uc14.west);
+\draw (4.6,-.3) -- (uc05.east);
+\draw (4.6,-2.2) -- (uc08.east);
+\draw (4.6,-4.1) -- (uc07.east);
+\draw (4.6,-6.0) -- (uc14.east);
 \end{tikzpicture}
 \end{center}
-\end{landscape}
 
 \clearpage
 
