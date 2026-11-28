@@ -1,0 +1,92 @@
+% Sequence-diagram realizations for UC-01 through UC-15.
+\newcommand{\sdparticipants}[5]{%
+\begin{center}
+\begin{tikzpicture}[x=1cm,y=1cm,font=\scriptsize,>=stealth]
+  \draw (-.55,.55) rectangle (13.80,-9.65);
+  \node[anchor=north west,font=\scriptsize\bfseries] at (-.45,.45) {sd #1};
+  \foreach \x/\participant in {0/{#2},4.1/{#3},8.2/{#4},12.3/{#5}} {
+    \node[draw,text width=2.7cm,minimum height=.65cm,align=center,fill=white] at (\x,-.25) {\participant};
+    \draw[dashed] (\x,-.65) -- (\x,-9.45);
+  }
+}
+
+\newcommand{\sdflow}[8]{%
+  \draw[->] (0,-1.25) -- node[above,align=center,text width=3.7cm] {#1} (4.1,-1.25);
+  \draw[->] (4.1,-2.10) -- node[above,align=center,text width=3.7cm] {#2} (8.2,-2.10);
+  \draw[->] (8.2,-2.95) -- node[above,align=center,text width=3.7cm] {#3} (12.3,-2.95);
+  \draw[->,dashed] (12.3,-3.80) -- node[above,align=center,text width=3.7cm] {#4} (8.2,-3.80);
+  \draw (3.75,-4.30) rectangle (12.65,-9.25);
+  \node[anchor=north west,font=\scriptsize\bfseries] at (3.85,-4.37) {alt};
+  \node[anchor=west,align=left,text width=7.7cm] at (4.30,-4.70) {[#5]};
+  \draw[->,dashed] (8.2,-5.85) -- node[above,align=center,text width=3.7cm] {#6} (4.1,-5.85);
+  \draw[->,dashed] (4.1,-6.55) -- node[above,align=center,text width=3.7cm] {confirmation} (0,-6.55);
+  \draw (3.75,-6.95) -- (12.65,-6.95);
+  \node[anchor=west,align=left,text width=7.7cm] at (4.30,-7.30) {[#7]};
+  \draw[->,dashed] (8.2,-8.25) -- node[above,align=center,text width=3.7cm] {#8} (4.1,-8.25);
+  \draw[->,dashed] (4.1,-8.90) -- node[above,align=center,text width=3.7cm] {identified error} (0,-8.90);
+\end{tikzpicture}
+\end{center}
+}
+
+\subsubsection*{UC-01. Receive stock}
+\sdparticipants{UC-01 Receive stock}{Pharmacy Technician}{Receiving Interface}{M03 Receiving Service}{Purchase Order and Stock Repositories}
+\sdflow{submit NDC, lot, expiration date and count}{inspectDelivery(orderId, entries)}{load order, invoice and prior GRNs}{expected and previously received quantities}{delivery entries accepted}{GRN number and received quantities}{delivery entries not accepted}{specific discrepancy and retained entries}
+
+\subsubsection*{UC-02. Staff sign in}
+\sdparticipants{UC-02 Staff sign in}{Staff Member}{Sign-in Interface}{M01 Identity Service}{Account Repository and Email Provider}
+\sdflow{submit username and password}{beginSignIn(username, password)}{verify account and send OTP}{challenge identifier}{OTP verified before expiry}{pharmacy-scoped session}{credential or OTP check fails}{specific authentication failure}
+
+\subsubsection*{UC-03. Manage staff accounts and roles}
+\sdparticipants{UC-03 Manage staff accounts and roles}{System Administrator}{Administration Interface}{M01 Account Service}{Account, Role and Pharmacy Repositories}
+\sdflow{submit account and assignments}{saveStaffAccount(values)}{check required fields, username, email format, role ID and pharmacy ID}{result of each stated check}{fields present, username unused, email format correct and IDs found}{saved account and assignments}{at least one stated check fails}{failed check and submitted field}
+
+\subsubsection*{UC-04. Maintain product, supplier and reorder settings}
+\sdparticipants{UC-04 Maintain settings}{Pharmacist / Manager}{Settings Interface}{M02, M07 or M08 Service}{Configuration Repository}
+\sdflow{submit selected record values}{save selected record}{check required fields, numeric ranges and referenced IDs}{result of each stated check}{fields present, numbers in range and IDs found}{saved record and audit reference}{at least one stated check fails}{failed check and submitted field}
+
+\subsubsection*{UC-05. Record a point-of-sale sale}
+\sdparticipants{UC-05 Record sale}{Point-of-Sale System}{M14 POS Adapter}{M04 Sales Service}{Stock and Document Repositories}
+\sdflow{send uniquely identified sale}{recordSale(event)}{lock lots and allocate FEFO quantities}{allocation and transaction result}{every line can be fulfilled}{GIN, invoice and acknowledgement}{any line cannot be fulfilled}{product, lot constraint and shortage}
+
+\subsubsection*{UC-06. Perform a physical count and correct stock}
+\sdparticipants{UC-06 Correct stock}{Pharmacy Technician / Manager}{Count Interface}{M05 Adjustment Service}{Stock View and Adjustment Repository}
+\sdflow{submit confirmed physical count}{compareCount(product, lot, count)}{load calculated stock and save decision}{calculated quantity and decision result}{approved count differs}{recorded correction and new calculated stock}{count matches or correction rejected}{recorded count with exact outcome}
+
+\subsubsection*{UC-07. Manage expiration and stock removal}
+\sdparticipants{UC-07 Remove expiring stock}{Pharmacist / Manager}{Expiration Interface}{M06 Expiration Service}{M04 Stock and Document Service}
+\sdflow{submit lot and removal quantity}{removeExpiredStock(lot, quantity, reason)}{verify available lot quantity and create GIN}{removal transaction result}{requested quantity is available}{GIN number and removed quantity}{quantity exceeds available lot stock}{available quantity and rejection}
+
+\subsubsection*{UC-08. Reorder stock and track the purchase order}
+\sdparticipants{UC-08 Reorder stock}{Pharmacist / Manager}{Purchase Order Interface}{M07 Purchase Order Service}{M08 Reorder Service and Supplier Adapter}
+\sdflow{review suggestion and submit accept, change or reject}{decideRecommendation(id, decision, quantity)}{check decision value and positive changed quantity, then send approved order}{order identifier and supplier result}{decision is accept, or change with quantity above zero}{sent purchase order and status}{decision is reject, changed quantity is not positive, or supplier send fails}{recorded rejection, quantity error or send error}
+
+\subsubsection*{UC-09. Assess forecasts and recommendations}
+\sdparticipants{UC-09 Assess forecast}{Pharmacist / Manager}{Forecast Interface}{M09 Forecast Service}{Sales History and M08 Recommendation Service}
+\sdflow{request product and horizon}{produceForecast(product, horizon)}{load sales history and prepare recommendation}{history sufficiency and result}{sufficient history exists}{model forecast, explanation and recommendation}{history is insufficient}{labeled rule-based estimate and explanation}
+
+\subsubsection*{UC-10. Search for a medication}
+\sdparticipants{UC-10 Search medication}{Customer}{Public Search Interface}{M10 Public Catalog Service}{Catalog and Safe Availability Services}
+\sdflow{submit brand, generic name or NDC}{search(query)}{find active products and safe availability}{matching products and schedule classes}{result may be publicly displayed}{availability status, price and alternatives}{result is Schedule II or absent}{contact-pharmacy or no-result message}
+
+\subsubsection*{UC-11. Find a nearby pharmacy}
+\sdparticipants{UC-11 Find nearby pharmacy}{Customer}{Nearby Pharmacy Interface}{M11 Proximity Service}{Location Resolver and Availability Service}
+\sdflow{consent to location or enter ZIP code}{findNearby(originInput, product)}{resolve origin and rank participating pharmacies}{resolved origin and ranked matches}{origin resolves}{distance-sorted list and directions links}{origin cannot be resolved}{specific location error and no ranked list}
+
+\subsubsection*{UC-12. Register and request a notice}
+\sdparticipants{UC-12 Request notice}{Registered Customer}{Notice Interface}{M15 Notice Service}{Account and Subscription Repositories}
+\sdflow{submit product and pharmacy notice request}{subscribe(customer, product, pharmacy)}{verify account and matching active subscription}{account and subscription result}{account is verified and no match exists}{created subscription}{account is unverified or match exists}{verification or duplicate-subscription result}
+
+\subsubsection*{UC-13. View dashboard and produce a report}
+\sdparticipants{UC-13 Dashboard and reports}{Staff Member}{Dashboard / Report Interface}{M12 or M13 Service}{Pharmacy Data and Audit Repositories}
+\sdflow{open dashboard or submit report parameters}{load pharmacy-scoped result}{check pharmacy access, report type and date range}{access and parameter results}{access allowed, type supported and start date not after end date}{dashboard or exported report}{access or a stated parameter check fails}{failed check and accepted value}
+
+\subsubsection*{UC-14. Synchronize transactions after an outage}
+\sdparticipants{UC-14 Synchronize after outage}{Store Application}{Synchronization Endpoint}{Central Synchronization Service}{Transaction Repository}
+\sdflow{send queued event and stable identifier}{synchronize(event)}{check identifier and expected version}{existing result or version check}{new event has expected version}{applied result and acknowledgement}{identifier exists or version differs}{existing result or explicit version conflict}
+
+\subsubsection*{UC-15. Ask the inventory assistant}
+\sdparticipants{UC-15 Inventory assistant}{Staff Member}{Assistant Interface}{M16 Assistant Service}{Pharmacy-Scoped Inventory Services}
+\sdflow{submit inventory question}{answer(question, sessionScope)}{retrieve supporting inventory values}{scoped values or unsupported result}{question is supported by available data}{answer, explanation and supporting values}{question is unsupported or data absent}{specific limitation and no system change}
+
+\let\sdparticipants\relax
+\let\sdflow\relax
